@@ -16,6 +16,12 @@ func main() {
 
 	ctx, _ := context.WithCancel(context.Background())
 
+	log.Print("Creating SDK instance")
+	s, err := sdk.NewSDK()
+	if err != nil {
+		log.Fatalf("Could not connect to sdk: %v", err)
+	}
+
 	addr := fmt.Sprintf(":%s", *port)
 	mux := http.NewServeMux()
 	server := &http.Server{
@@ -24,14 +30,13 @@ func main() {
 	}
 
 	mux.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
-		fmt.Fprint(writer, "ok")
-	})
+		gs, err := s.GameServer()
+		if err != nil {
+			fmt.Fprint(writer, err.Error())
+		}
 
-	log.Print("Creating SDK instance")
-	s, err := sdk.NewSDK()
-	if err != nil {
-		log.Fatalf("Could not connect to sdk: %v", err)
-	}
+		fmt.Fprintf(writer, "GameServerName: %s", gs.ObjectMeta.Name)
+	})
 
 	go doHealth(s, ctx)
 
