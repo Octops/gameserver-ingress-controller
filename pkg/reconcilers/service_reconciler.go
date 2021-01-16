@@ -40,7 +40,6 @@ func (r *ServiceReconciler) Reconcile(gs *agonesv1.GameServer) (*corev1.Service,
 
 func (r *ServiceReconciler) reconcileNotFound(gs *agonesv1.GameServer) (*corev1.Service, error) {
 	ref := metav1.NewControllerRef(gs, agonesv1.SchemeGroupVersion.WithKind("GameServer"))
-	gsPort := gameserver.GetGameServerPort(gs)
 
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -56,9 +55,9 @@ func (r *ServiceReconciler) reconcileNotFound(gs *agonesv1.GameServer) (*corev1.
 			Ports: []corev1.ServicePort{
 				{
 					Name: "gameserver",
-					Port: gsPort.Port,
+					Port: gameserver.GetGameServerPort(gs).Port,
 					TargetPort: intstr.IntOrString{
-						IntVal: gsPort.Port,
+						IntVal: gameserver.GetGameServerContainerPort(gs),
 					},
 				},
 			},
