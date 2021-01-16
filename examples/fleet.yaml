@@ -15,28 +15,31 @@
 apiVersion: "agones.dev/v1"
 kind: Fleet
 metadata:
-  name: octops-gameserver-us-east-1
+  name: octops
   labels:
     cluster: gke-1.17
     region: us-east-1
 spec:
-  replicas: 25
+  replicas: 1
   template:
     metadata:
       labels:
         cluster: gke-1.17
         region: us-east-1
       annotations:
-        octops.io/register-service-name: ""
+        octops.io/gameserver-ingress-domain: "example.com"
     spec:
       ports:
         - name: default
-          containerPort: 7654
+          containerPort: 8088
+          protocol: TCP
       template:
         spec:
           containers:
             - name: gameserver
-              image: gcr.io/agones-images/udp-server:0.21
+              #image: gcr.io/agones-images/udp-server:0.21
+              imagePullPolicy: Always
+              image: octops/gameserver-http:latest
               resources:
                 requests:
                   memory: "64Mi"
