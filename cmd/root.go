@@ -71,7 +71,7 @@ to quickly create a Cobra application.`,
 		})
 
 		logger.Info("creating GameServer controller")
-		ctrl, err := controller.NewGameServerController(mgr, handlers.NewGameSeverEventHandler(), controller.Options{
+		ctrl, err := controller.NewGameServerController(mgr, handlers.NewGameSeverEventHandler(clientConf), controller.Options{
 			For: &agonesv1.GameServer{},
 		})
 
