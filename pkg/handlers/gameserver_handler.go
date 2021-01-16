@@ -20,6 +20,7 @@ type GameSeverEventHandler struct {
 	logger            *logrus.Entry
 	client            *kubernetes.Clientset
 	serviceReconciler *reconcilers.ServiceReconciler
+	ingressReconciler *reconcilers.IngressReconciler
 }
 
 func NewGameSeverEventHandler(config *rest.Config) *GameSeverEventHandler {
@@ -32,6 +33,7 @@ func NewGameSeverEventHandler(config *rest.Config) *GameSeverEventHandler {
 		logger:            runtime.Logger().WithField("role", "event_handler"),
 		client:            client,
 		serviceReconciler: reconcilers.NewServiceReconciler(client),
+		ingressReconciler: reconcilers.NewIngressReconciler(client),
 	}
 }
 
@@ -43,26 +45,11 @@ func (h *GameSeverEventHandler) OnAdd(obj interface{}) error {
 	// Get the domain name from the annotation
 	// Create certificate
 	// Create Ingress with Host gamename.domain.com
-	// Set Owner Reference
+	// x Set Owner Reference
 
 	gs := gameserver.FromObject(obj)
-	if _, ok := gameserver.HasReconcileAnnotation(gs, OctopsIngressControllerAnnotation); !ok {
-		return nil
-	}
 
-	if gameserver.IsReady(gs) == false {
-		msg := fmt.Sprintf("gameserver %s/%s not ready", gs.Namespace, gs.Name)
-		h.logger.Debug(msg)
-
-		return errors.New(msg)
-	}
-
-	_, err := h.serviceReconciler.Reconcile(gs)
-	if err != nil {
-		return errors.Wrap(err, "failed to reconcile gameserver/service")
-	}
-
-	return nil
+	return h.Reconcile(gs)
 }
 
 func (h *GameSeverEventHandler) OnUpdate(oldObj interface{}, newObj interface{}) error {
@@ -70,23 +57,7 @@ func (h *GameSeverEventHandler) OnUpdate(oldObj interface{}, newObj interface{})
 
 	gs := gameserver.FromObject(newObj)
 
-	if _, ok := gameserver.HasReconcileAnnotation(gs, OctopsIngressControllerAnnotation); !ok {
-		return nil
-	}
-
-	if gameserver.IsReady(gs) == false {
-		msg := fmt.Sprintf("gameserver %s/%s not ready", gs.Namespace, gs.Name)
-		h.logger.Debug(msg)
-
-		return errors.New(msg)
-	}
-
-	_, err := h.serviceReconciler.Reconcile(gs)
-	if err != nil {
-		return errors.Wrap(err, "failed to reconcile gameserver/service")
-	}
-
-	return nil
+	return h.Reconcile(gs)
 }
 
 func (h *GameSeverEventHandler) OnDelete(obj interface{}) error {
@@ -97,4 +68,29 @@ func (h *GameSeverEventHandler) OnDelete(obj interface{}) error {
 
 func (h GameSeverEventHandler) Client() *kubernetes.Clientset {
 	return h.client
+}
+
+func (h *GameSeverEventHandler) Reconcile(gs *agonesv1.GameServer) error {
+	if _, ok := gameserver.HasReconcileAnnotation(gs, OctopsIngressControllerAnnotation); !ok {
+		return nil
+	}
+
+	if gameserver.IsReady(gs) == false {
+		msg := fmt.Sprintf("gameserver %s/%s not ready", gs.Namespace, gs.Name)
+		h.logger.Debug(msg)
+
+		return errors.New(msg)
+	}
+
+	_, err := h.serviceReconciler.Reconcile(gs)
+	if err != nil {
+		return errors.Wrap(err, "failed to reconcile gameserver/service")
+	}
+
+	_, err = h.ingressReconciler.Reconcile(gs)
+	if err != nil {
+		return errors.Wrap(err, "failed to reconcile gameserver/ingress")
+	}
+
+	return nil
 }
