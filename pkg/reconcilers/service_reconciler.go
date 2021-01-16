@@ -25,7 +25,7 @@ func NewServiceReconciler(client *kubernetes.Clientset) *ServiceReconciler {
 	}
 }
 
-func (r ServiceReconciler) Reconcile(gs *agonesv1.GameServer) (*corev1.Service, error) {
+func (r *ServiceReconciler) Reconcile(gs *agonesv1.GameServer) (*corev1.Service, error) {
 	service, err := r.Client.CoreV1().Services(gs.Namespace).Get(gs.Name, metav1.GetOptions{})
 	if err != nil {
 		if !k8serrors.IsNotFound(err) {
@@ -38,7 +38,7 @@ func (r ServiceReconciler) Reconcile(gs *agonesv1.GameServer) (*corev1.Service, 
 	return service, nil
 }
 
-func (r ServiceReconciler) reconcileNotFound(gs *agonesv1.GameServer) (*corev1.Service, error) {
+func (r *ServiceReconciler) reconcileNotFound(gs *agonesv1.GameServer) (*corev1.Service, error) {
 	ref := metav1.NewControllerRef(gs, agonesv1.SchemeGroupVersion.WithKind("GameServer"))
 	gsPort := gameserver.GetGameServerPort(gs)
 
