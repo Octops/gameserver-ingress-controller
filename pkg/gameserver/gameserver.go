@@ -18,6 +18,14 @@ func GetGameServerPort(gs *agonesv1.GameServer) agonesv1.GameServerStatusPort {
 	return agonesv1.GameServerStatusPort{}
 }
 
+func GetGameServerContainerPort(gs *agonesv1.GameServer) int32 {
+	if len(gs.Spec.Ports) > 0 {
+		return gs.Spec.Ports[0].ContainerPort
+	}
+
+	return 0
+}
+
 func HasReconcileAnnotation(gs *agonesv1.GameServer, annotation string) (string, bool) {
 	if value, ok := gs.Annotations[annotation]; ok {
 		return value, true
