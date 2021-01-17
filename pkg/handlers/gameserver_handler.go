@@ -12,10 +12,6 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-const (
-	OctopsIngressControllerAnnotation = "octops.io/gameserver-ingress-domain"
-)
-
 type GameSeverEventHandler struct {
 	logger            *logrus.Entry
 	client            *kubernetes.Clientset
@@ -40,16 +36,13 @@ func NewGameSeverEventHandler(config *rest.Config) *GameSeverEventHandler {
 func (h *GameSeverEventHandler) OnAdd(obj interface{}) error {
 	h.logger.Infof("ADD: %s", obj.(*agonesv1.GameServer).Name)
 
-	// x Check Annotations
-	// x Create Service with label selector
-	// Get the domain name from the annotation
-	// Create certificate
-	// Create Ingress with Host gamename.domain.com
-	// x Set Owner Reference
-
 	gs := gameserver.FromObject(obj)
 
-	return h.Reconcile(gs)
+	if err := h.Reconcile(gs); err != nil {
+		h.logger.Error(err)
+	}
+
+	return nil
 }
 
 func (h *GameSeverEventHandler) OnUpdate(oldObj interface{}, newObj interface{}) error {
@@ -57,7 +50,11 @@ func (h *GameSeverEventHandler) OnUpdate(oldObj interface{}, newObj interface{})
 
 	gs := gameserver.FromObject(newObj)
 
-	return h.Reconcile(gs)
+	if err := h.Reconcile(gs); err != nil {
+		h.logger.Error(err)
+	}
+
+	return nil
 }
 
 func (h *GameSeverEventHandler) OnDelete(obj interface{}) error {
@@ -71,7 +68,7 @@ func (h GameSeverEventHandler) Client() *kubernetes.Clientset {
 }
 
 func (h *GameSeverEventHandler) Reconcile(gs *agonesv1.GameServer) error {
-	if _, ok := gameserver.HasReconcileAnnotation(gs, OctopsIngressControllerAnnotation); !ok {
+	if _, ok := gameserver.HasAnnotation(gs, gameserver.DomainAnnotation); !ok {
 		return nil
 	}
 
