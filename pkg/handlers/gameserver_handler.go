@@ -68,7 +68,7 @@ func (h GameSeverEventHandler) Client() *kubernetes.Clientset {
 }
 
 func (h *GameSeverEventHandler) Reconcile(gs *agonesv1.GameServer) error {
-	if _, ok := gameserver.HasAnnotation(gs, gameserver.DomainAnnotation); !ok {
+	if _, ok := gameserver.HasAnnotation(gs, gameserver.OctopsAnnotationIngressDomain); !ok {
 		return nil
 	}
 

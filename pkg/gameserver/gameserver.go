@@ -3,10 +3,11 @@ package gameserver
 import agonesv1 "agones.dev/agones/pkg/apis/agones/v1"
 
 const (
-	OctopsIngressControllerAnnotation = "octops.io/gameserver-ingress-domain"
+	OctopsAnnotationIngressDomain = "octops.io/gameserver-ingress-domain"
+	OctopsAnnotationTerminateTLS  = "octops.io/terminate-tls"
+	OctopsAnnotationIssuerName    = "octops.io/issuer-tls-name"
+	CertManagerAnnotationIssuer   = "cert-manager.io/issuer"
 )
-
-var DomainAnnotation = OctopsIngressControllerAnnotation
 
 func FromObject(obj interface{}) *agonesv1.GameServer {
 	if gs, ok := obj.(*agonesv1.GameServer); ok {
