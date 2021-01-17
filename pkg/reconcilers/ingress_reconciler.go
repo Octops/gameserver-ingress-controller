@@ -44,6 +44,10 @@ func (r IngressReconciler) Reconcile(gs *agonesv1.GameServer) (*v1beta1.Ingress,
 func (r *IngressReconciler) reconcileNotFound(gs *agonesv1.GameServer) (*v1beta1.Ingress, error) {
 	ref := metav1.NewControllerRef(gs, agonesv1.SchemeGroupVersion.WithKind("GameServer"))
 
+	if domain, ok := gameserver.HasAnnotation(gs, gameserver.DomainAnnotation); !ok || len(domain) == 0 {
+		return &v1beta1.Ingress{}, errors.Errorf("failed to create ingress, the \"%s\" annotation is either not present or null on the gameserver \"%s\"", gameserver.DomainAnnotation, gs.Name)
+	}
+
 	ingress := &v1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: gs.Name,
@@ -61,14 +65,14 @@ func (r *IngressReconciler) reconcileNotFound(gs *agonesv1.GameServer) (*v1beta1
 			TLS: []v1beta1.IngressTLS{
 				{
 					Hosts: []string{
-						fmt.Sprintf("%s.mygame.com", gs.Name),
+						fmt.Sprintf("%s.%s", gs.Name, gs.Annotations[gameserver.DomainAnnotation]),
 					},
 					SecretName: fmt.Sprintf("%s-tls", gs.Name),
 				},
 			},
 			Rules: []v1beta1.IngressRule{
 				{
-					Host: fmt.Sprintf("%s.example.com", gs.Name),
+					Host: fmt.Sprintf("%s.%s", gs.Name, gs.Annotations[gameserver.DomainAnnotation]),
 					IngressRuleValue: v1beta1.IngressRuleValue{
 						HTTP: &v1beta1.HTTPIngressRuleValue{
 							Paths: []v1beta1.HTTPIngressPath{
