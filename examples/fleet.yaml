@@ -20,7 +20,7 @@ metadata:
     cluster: gke-1.17
     region: us-east-1
 spec:
-  replicas: 1
+  replicas: 3
   template:
     metadata:
       labels:
@@ -28,6 +28,8 @@ spec:
         region: us-east-1
       annotations:
         octops.io/gameserver-ingress-domain: "mygame.com"
+        octops.io/terminate-tls: "true"
+        octops.io/issuer-tls-name: "selfsigned-issuer"
     spec:
       ports:
         - name: default
