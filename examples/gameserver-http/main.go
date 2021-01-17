@@ -3,6 +3,7 @@ package main
 import (
 	sdk "agones.dev/agones/sdks/go"
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -35,7 +36,18 @@ func main() {
 			fmt.Fprint(writer, err.Error())
 		}
 
-		fmt.Fprintf(writer, "GameServerName: %s", gs.ObjectMeta.Name)
+		response := struct {
+			Name    string
+			Address string
+			Status  interface{}
+		}{
+			Name:    gs.ObjectMeta.Name,
+			Address: fmt.Sprintf("%s:%d", gs.Status.Address, gs.Status.Ports[0].Port),
+			Status:  gs.Status,
+		}
+
+		writer.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(writer).Encode(response)
 	})
 
 	go doHealth(s, ctx)
