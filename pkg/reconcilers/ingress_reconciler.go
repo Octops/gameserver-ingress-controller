@@ -36,6 +36,8 @@ func (r IngressReconciler) Reconcile(gs *agonesv1.GameServer) (*v1beta1.Ingress,
 		return r.reconcileNotFound(gs)
 	}
 
+	//TODO: Validate if details still match the GS info
+
 	return ingress, nil
 }
 
@@ -48,10 +50,22 @@ func (r *IngressReconciler) reconcileNotFound(gs *agonesv1.GameServer) (*v1beta1
 			Labels: map[string]string{
 				"agones.dev/gameserver": gs.Name,
 			},
-			Annotations:     nil,
+			Annotations: map[string]string{
+				//"cert-manager.io/issuer": "letsencrypt-staging",
+				//"cert-manager.io/issuer": "letsencrypt-prod",
+				"cert-manager.io/issuer": "selfsigned-issuer",
+			},
 			OwnerReferences: []metav1.OwnerReference{*ref},
 		},
 		Spec: v1beta1.IngressSpec{
+			TLS: []v1beta1.IngressTLS{
+				{
+					Hosts: []string{
+						fmt.Sprintf("%s.mygame.com", gs.Name),
+					},
+					SecretName: fmt.Sprintf("%s-tls", gs.Name),
+				},
+			},
 			Rules: []v1beta1.IngressRule{
 				{
 					Host: fmt.Sprintf("%s.example.com", gs.Name),
