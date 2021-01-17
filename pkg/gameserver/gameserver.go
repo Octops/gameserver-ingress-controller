@@ -2,6 +2,12 @@ package gameserver
 
 import agonesv1 "agones.dev/agones/pkg/apis/agones/v1"
 
+const (
+	OctopsIngressControllerAnnotation = "octops.io/gameserver-ingress-domain"
+)
+
+var DomainAnnotation = OctopsIngressControllerAnnotation
+
 func FromObject(obj interface{}) *agonesv1.GameServer {
 	if gs, ok := obj.(*agonesv1.GameServer); ok {
 		return gs
@@ -26,7 +32,7 @@ func GetGameServerContainerPort(gs *agonesv1.GameServer) int32 {
 	return 0
 }
 
-func HasReconcileAnnotation(gs *agonesv1.GameServer, annotation string) (string, bool) {
+func HasAnnotation(gs *agonesv1.GameServer, annotation string) (string, bool) {
 	if value, ok := gs.Annotations[annotation]; ok {
 		return value, true
 	}
