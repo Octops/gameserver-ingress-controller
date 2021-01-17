@@ -4,6 +4,7 @@ Automatic Ingress configuration for Game Servers managed by [Agones](https://ago
 The Gameserver Ingress Controller leverages the power of the [Kubernetes Ingress Controller](https://kubernetes.io/docs/concepts/services-networking/ingress-controllers/) to bring inbound traffic to dedicated game servers.
 
 Players will be able to reach out to a dedicated game server using a custom domain and a secure connection. I.e.:`https://octops-2dnqv-jmqgp.mygame.com`
+
 ## Supported Agones Resources
 - Fleets
 - Stand-Alone GameServers
@@ -71,6 +72,9 @@ The table below shows how the information from the gameserver is used to compose
 |annotation: octops.io/terminate-tls | terminate TLS |
 |annotation: octops.io/issuer-tls-name| name of the issuer |
 
+## Clean up and Gameserver Lifecycle
+Every resource created by the controller is attached to the gameserver itself. That means, when a gameserver is deleted from the cluster all its dependencies will be cleaned up by the Kubernetes garbage collector.
+Manual deletion of services and ingresses is not required by the operator of the cluster.
 
 ## Requirements
 The following components must be present on the Kubernetes cluster where the dedicated gameservers, and the controller will he hosted/deployed.
@@ -114,4 +118,26 @@ octops-ingress-controller-6b8dc49fb9-vr5lz   1/1     Running   0          3h6m
 Check logs:
 ```bash
 $ kubectl -n octops-system logs -f $(kubectl -n octops-system get pod -l app=octops-ingress-controller -o=jsonpath='{.items[*].metadata.name}')
+```
+
+## Extras
+
+You can find examples of different issuers on the [deploy/cert-manager](deploy/cert-manager) folder. Make sure you update the information to reflect your environment before applying those manifests.
+
+For a quick test you can use the [examples/fleet.yaml](examples/fleet.yaml). This manifest will deploy a simple http gameserver that keeps the health check and changes the state to "Ready".
+```bash
+$ kubectl apply -f examples/fleet.yaml
+
+# Find the ingress for one of the replicas
+$ kubectl get ingress
+NAME                 HOSTS                           ADDRESS         PORTS     AGE
+octops-tl6hf-fnmgd   octops-tl6hf-fnmgd.mygame.com                   80, 443   67m
+octops-tl6hf-jjqvt   octops-tl6hf-jjqvt.mygame.com                   80, 443   67m
+octops-tl6hf-qzhzb   octops-tl6hf-qzhzb.mygame.com                   80, 443   67m
+
+# Test the public endpoint
+$ curl https://octops-tl6hf-fnmgd.mygame.com
+
+# Output
+{"Name":"octops-tl6hf-fnmgd","Address":"36.23.134.23:7318","Status":{"state":"Ready","address":"192.168.0.117","ports":[{"name":"default","port":7318}]}}
 ```
