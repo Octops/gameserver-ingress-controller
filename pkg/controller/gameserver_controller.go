@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"github.com/Octops/gameserver-ingress-controller/pkg/handlers"
+	"github.com/Octops/gameserver-ingress-controller/pkg/reconcilers"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -110,11 +111,10 @@ func NewGameServerController(mgr manager.Manager, eventHandler handlers.EventHan
 				limitingInterface.Forget(request)
 			},
 		}).
-		Complete(&Reconciler{
-			logger: logger,
-			obj:    options.For,
+		Complete(&reconcilers.Reconciler{
+			Obj:    options.For,
 			Client: mgr.GetClient(),
-			scheme: mgr.GetScheme(),
+			Scheme: mgr.GetScheme(),
 		})
 
 	if err != nil {

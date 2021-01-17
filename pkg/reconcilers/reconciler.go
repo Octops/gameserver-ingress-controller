@@ -1,4 +1,4 @@
-package controller
+package reconcilers
 
 import (
 	"github.com/sirupsen/logrus"
@@ -10,9 +10,9 @@ import (
 // Reconciler handles events when resources are reconciled. The interval is configured on the Manager's level.
 type Reconciler struct {
 	logger *logrus.Entry
-	obj    runtime.Object
+	Obj    runtime.Object
 	client.Client
-	scheme *runtime.Scheme
+	Scheme *runtime.Scheme
 }
 
 // Warning: This method is possible not meant to be used. It has a particular use case but the broadcaster uses a shorter

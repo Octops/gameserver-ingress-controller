@@ -35,6 +35,7 @@ func (r *ServiceReconciler) Reconcile(gs *agonesv1.GameServer) (*corev1.Service,
 		return r.reconcileNotFound(gs)
 	}
 
+	//TODO: Validate if details still match the GS info
 	return service, nil
 }
 
