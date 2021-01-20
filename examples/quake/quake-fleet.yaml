@@ -1,0 +1,131 @@
+# https://github.com/Octops/quake-kube
+# This fleet deploys Quaker 3 servers that can be managed by Agones. It is a fork of the original project https://github.com/criticalstack/quake-kube
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: quake3-server-config
+data:
+  config.yaml: |
+    fragLimit: 25
+    timeLimit: 15m
+    bot:
+      minPlayers: 3
+    game:
+      motd: "Welcome to Critical Stack"
+      type: FreeForAll
+      forceRespawn: false
+      inactivity: 10m
+      quadFactor: 3
+      weaponRespawn: 3
+    server:
+      hostname: "quakekube"
+      maxClients: 12
+      password: "changeme"
+    commands:
+      - addbot sarge 2
+    maps:
+    - name: q3dm7
+      type: FreeForAll
+      timeLimit: 10m
+    - name: q3dm17
+      type: FreeForAll
+    - name: q3wctf1
+      type: CaptureTheFlag
+      captureLimit: 8
+    - name: q3tourney2
+      type: Tournament
+    - name: q3wctf3
+      type: CaptureTheFlag
+      captureLimit: 8
+    - name: ztn3tourney1
+      type: Tournament
+---
+apiVersion: "agones.dev/v1"
+kind: Fleet
+metadata:
+  name: octops
+  labels:
+    cluster: gke-1.17
+    region: us-east-1
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        cluster: gke-1.17
+        region: us-east-1
+      annotations:
+        octops.io/gameserver-ingress-domain: "arena.com"
+        octops.io/terminate-tls: "true"
+        octops.io/issuer-tls-name: "selfsigned-issuer"
+    spec:
+      players:
+        # Set initial player capacity if using PlayerTracking Alpha()
+        initialCapacity: 100
+      container: gameserver
+      ports:
+        - name: default
+          containerPort: 8081
+          protocol: TCP
+      # Disable should be false if the flag --with-agones=false
+      #      health:
+      #        disabled: true
+      template:
+        spec:
+          containers:
+            - name: gameserver
+              imagePullPolicy: Always
+              image: octops/quake:latest
+              command:
+                - q3
+                - server
+                - --config=/config/config.yaml
+                - --content-server=http://127.0.0.1:9090
+                - --agree-eula
+                - --client-addr=0.0.0.0:8081
+                - --with-agones
+              ports:
+                - containerPort: 8081
+              readinessProbe:
+                tcpSocket:
+                  port: 8081
+                initialDelaySeconds: 15
+                periodSeconds: 5
+              resources:
+                requests:
+                  memory: "500Mi"
+                  cpu: "0.5"
+                limits:
+                  memory: "1Gi"
+                  cpu: "1"
+              volumeMounts:
+                - name: quake3-server-config
+                  mountPath: /config
+                - name: quake3-content
+                  mountPath: /assets
+            - name: content-server
+              imagePullPolicy: Always
+              image: octops/quake:latest
+              command:
+                - q3
+                - content
+                - --seed-content-url=http://content.quakejs.com
+              ports:
+                - containerPort: 9090
+              resources:
+                requests:
+                  memory: "500Mi"
+                  cpu: "0.5"
+                limits:
+                  memory: "1Gi"
+                  cpu: "1"
+              volumeMounts:
+                - name: quake3-content
+                  mountPath: /assets
+          volumes:
+            - name: quake3-server-config
+              configMap:
+                name: quake3-server-config
+            - name: quake3-content
+              emptyDir: {}
