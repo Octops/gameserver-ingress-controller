@@ -187,3 +187,12 @@ $ kubectl destroy -f examples/quake/quake-fleet.yaml
 ```
 
 As expected Agones will destroy the Fleet, consequently deleting all the Ingresses associated to the destroyed gameservers. 
+
+
+## Screenshots
+
+![alt text](docs/screenshots/quake2.png)
+
+![alt text](docs/screenshots/quake1.png)
+
+![alt text](docs/screenshots/quake3.png)
