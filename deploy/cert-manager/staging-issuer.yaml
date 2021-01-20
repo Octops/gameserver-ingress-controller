@@ -1,4 +1,5 @@
 # https://cert-manager.io/docs/tutorials/acme/ingress/#step-6-configure-let-s-encrypt-issuer
+# https://cert-manager.io/docs/tutorials/acme/http-validation/
 apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
