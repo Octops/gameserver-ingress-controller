@@ -16,25 +16,27 @@ It will use the information present in the gameserver annotations and metadata t
 
 As an example, a Fleet that looks like:
 ```yaml
+# Reference: https://agones.dev/site/docs/reference/fleet/
 apiVersion: "agones.dev/v1"
 kind: Fleet
 metadata:
-  name: octops
-  labels:
+  name: octops # the name of your fleet
+  labels: # optional labels
     cluster: gke-1.17
     region: us-east-1
 spec:
   replicas: 3
   template:
     metadata:
-      labels:
-        cluster: gke-1.17
+      labels: # optional labels
+        cluster: gke-1.17 
         region: us-east-1
       annotations:
         # Required annotation used by the controller
         octops.io/gameserver-ingress-domain: "mygame.com"
         octops.io/terminate-tls: "true"
         octops.io/issuer-tls-name: "letsencrypt-prod"
+# The rest of your fleet spec stays the same        
  ...
 ```
 
@@ -83,10 +85,14 @@ The following components must be present on the Kubernetes cluster where the ded
   - https://agones.dev/site/docs/installation/install-agones/helm/
 - [NGINX Ingress Controller](https://kubernetes.github.io/ingress-nginx/)
   - Choose the appropriate setup depending on your environment, network topology and cloud provider. It will affect how the Ingress Service will be exposed to the internet.
+  - Update the DNS information to reflect the name/address of the loadbalancer pointing to the exposed service. You can find this information running `kubectl -n ingress-nginx get svc` and checking the column `EXTERNAL-IP`.
+  - The DNS record must be a `*` wildcard record. That will allow any gameserver to be placed under the desired domain automatically.
+  - Install: https://kubernetes.github.io/ingress-nginx/deploy/
 - [Cert-Manager](https://cert-manager.io/docs/)
   - Check https://cert-manager.io/docs/tutorials/acme/http-validation/ to understand which type of issuer you should use. 
   - Make sure you have an `Issuer` that uses LetsEncrypt. You can find some examples on [deploy/cert-manager](deploy/cert-manager).
-  -  ```$ kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.1.0/cert-manager.yaml```
+  - The name of the `Issuer` must be the same used on the Fleet annotation `octops.io/issuer-tls-name`.  
+  - Install: ```$ kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.1.0/cert-manager.yaml```
   
 ## Fleet and GameServer Manifests
 The same configuration works for Fleets and GameServers. Add the following annotations to your manifest:
@@ -103,7 +109,7 @@ annotations:
 
 ## Deploy the Gameserver Ingress Controller
 
-Deploy the controller by running:
+Deploy the controller running:
 ```bash
 $ kubectl apply -f deploy/install.yaml
 ```
@@ -190,6 +196,8 @@ As expected Agones will destroy the Fleet, consequently deleting all the Ingress
 
 
 ## Screenshots
+
+**The screenshots below use a fake domain `arena.com` used just for local and demonstration purpose. That domain should reflect the name of the domain you own and want your gameservers to be hosted. On real cloud environment, the certificate issued by cert-manager will be valid.**
 
 ![alt text](docs/screenshots/quake2.png)
 
