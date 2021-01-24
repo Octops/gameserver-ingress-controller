@@ -9,6 +9,11 @@ Players will be able to reach out to a dedicated game server using a custom doma
 - Fleets
 - Stand-Alone GameServers
 
+## Limitations
+The NGINX Ingress controller does not support TCP/UDP services. You can find more information on https://kubernetes.github.io/ingress-nginx/user-guide/exposing-tcp-udp-services.
+
+However, the gameserver ingress controller will work with any game that uses HTTP, TLS and/or websocket.
+
 ## How it works
 When a gameserver is created by Agones, either as part of a Fleet or a stand-alone deployment, the gameserver ingress controller will handle the provisioning of a couple of resources.
 
