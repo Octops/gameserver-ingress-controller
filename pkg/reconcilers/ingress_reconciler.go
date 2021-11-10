@@ -2,18 +2,20 @@ package reconcilers
 
 import (
 	agonesv1 "agones.dev/agones/pkg/apis/agones/v1"
+	"context"
 	"fmt"
 	"github.com/Octops/gameserver-ingress-controller/internal/runtime"
 	"github.com/Octops/gameserver-ingress-controller/pkg/gameserver"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"k8s.io/api/networking/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 	"strconv"
 )
+
+var defaultPathType = networkingv1.PathTypePrefix
 
 type IngressReconciler struct {
 	logger *logrus.Entry
@@ -27,14 +29,14 @@ func NewIngressReconciler(client *kubernetes.Clientset) *IngressReconciler {
 	}
 }
 
-func (r IngressReconciler) Reconcile(gs *agonesv1.GameServer) (*v1beta1.Ingress, error) {
-	ingress, err := r.Client.NetworkingV1beta1().Ingresses(gs.Namespace).Get(gs.Name, metav1.GetOptions{})
+func (r *IngressReconciler) Reconcile(ctx context.Context, gs *agonesv1.GameServer) (*networkingv1.Ingress, error) {
+	ingress, err := r.Client.NetworkingV1().Ingresses(gs.Namespace).Get(ctx, gs.Name, metav1.GetOptions{})
 	if err != nil {
 		if !k8serrors.IsNotFound(err) {
-			return &v1beta1.Ingress{}, errors.Wrapf(err, "error retrieving Ingress %s from namespace %s", gs.Name, gs.Namespace)
+			return &networkingv1.Ingress{}, errors.Wrapf(err, "error retrieving Ingress %s from namespace %s", gs.Name, gs.Namespace)
 		}
 
-		return r.reconcileNotFound(gs)
+		return r.reconcileNotFound(ctx, gs)
 	}
 
 	//TODO: Validate if details still match the GS info
@@ -42,15 +44,15 @@ func (r IngressReconciler) Reconcile(gs *agonesv1.GameServer) (*v1beta1.Ingress,
 	return ingress, nil
 }
 
-func (r *IngressReconciler) reconcileNotFound(gs *agonesv1.GameServer) (*v1beta1.Ingress, error) {
+func (r *IngressReconciler) reconcileNotFound(ctx context.Context, gs *agonesv1.GameServer) (*networkingv1.Ingress, error) {
 	ref := metav1.NewControllerRef(gs, agonesv1.SchemeGroupVersion.WithKind("GameServer"))
 
 	if domain, ok := gameserver.HasAnnotation(gs, gameserver.OctopsAnnotationIngressDomain); !ok || len(domain) == 0 {
-		return &v1beta1.Ingress{}, errors.Errorf("failed to create ingress, the \"%s\" annotation is either not present or null on the gameserver \"%s\"", gameserver.OctopsAnnotationIngressDomain, gs.Name)
+		return &networkingv1.Ingress{}, errors.Errorf("failed to create ingress, the \"%s\" annotation is either not present or null on the gameserver \"%s\"", gameserver.OctopsAnnotationIngressDomain, gs.Name)
 	}
 
 	// TODO: Use octops.io/terminate-tls to define the issuer, octops.io/issuer-tls-name
-	ingress := &v1beta1.Ingress{
+	ingress := &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: gs.Name,
 			Labels: map[string]string{
@@ -58,8 +60,8 @@ func (r *IngressReconciler) reconcileNotFound(gs *agonesv1.GameServer) (*v1beta1
 			},
 			OwnerReferences: []metav1.OwnerReference{*ref},
 		},
-		Spec: v1beta1.IngressSpec{
-			TLS: []v1beta1.IngressTLS{
+		Spec: networkingv1.IngressSpec{
+			TLS: []networkingv1.IngressTLS{
 				{
 					Hosts: []string{
 						fmt.Sprintf("%s.%s", gs.Name, gs.Annotations[gameserver.OctopsAnnotationIngressDomain]),
@@ -67,18 +69,21 @@ func (r *IngressReconciler) reconcileNotFound(gs *agonesv1.GameServer) (*v1beta1
 					SecretName: fmt.Sprintf("%s-tls", gs.Name),
 				},
 			},
-			Rules: []v1beta1.IngressRule{
+			Rules: []networkingv1.IngressRule{
 				{
 					Host: fmt.Sprintf("%s.%s", gs.Name, gs.Annotations[gameserver.OctopsAnnotationIngressDomain]),
-					IngressRuleValue: v1beta1.IngressRuleValue{
-						HTTP: &v1beta1.HTTPIngressRuleValue{
-							Paths: []v1beta1.HTTPIngressPath{
+					IngressRuleValue: networkingv1.IngressRuleValue{
+						HTTP: &networkingv1.HTTPIngressRuleValue{
+							Paths: []networkingv1.HTTPIngressPath{
 								{
-									Path: "/",
-									Backend: v1beta1.IngressBackend{
-										ServiceName: gs.Name,
-										ServicePort: intstr.IntOrString{
-											IntVal: gameserver.GetGameServerPort(gs).Port,
+									Path:     "/",
+									PathType: &defaultPathType,
+									Backend: networkingv1.IngressBackend{
+										Service: &networkingv1.IngressServiceBackend{
+											Name: gs.Name,
+											Port: networkingv1.ServiceBackendPort{
+												Number: gameserver.GetGameServerPort(gs).Port,
+											},
 										},
 									},
 								},
@@ -94,7 +99,7 @@ func (r *IngressReconciler) reconcileNotFound(gs *agonesv1.GameServer) (*v1beta1
 		return nil, errors.Wrap(err, "failed to set TLS issuer")
 	}
 
-	result, err := r.Client.NetworkingV1beta1().Ingresses(gs.Namespace).Create(ingress)
+	result, err := r.Client.NetworkingV1().Ingresses(gs.Namespace).Create(ctx, ingress, metav1.CreateOptions{})
 	if err != nil {
 		r.logger.WithError(err).Errorf("failed to create ingress %s", ingress.Name)
 		return nil, errors.Wrap(err, "failed to create ingress")
@@ -103,7 +108,7 @@ func (r *IngressReconciler) reconcileNotFound(gs *agonesv1.GameServer) (*v1beta1
 	return result, nil
 }
 
-func (r *IngressReconciler) SetTLSIssuer(gs *agonesv1.GameServer, ingress *v1beta1.Ingress) error {
+func (r *IngressReconciler) SetTLSIssuer(gs *agonesv1.GameServer, ingress *networkingv1.Ingress) error {
 	terminate, ok := gameserver.HasAnnotation(gs, gameserver.OctopsAnnotationTerminateTLS)
 	if !ok || len(terminate) == 0 {
 		return nil

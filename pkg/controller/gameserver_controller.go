@@ -5,11 +5,11 @@ import (
 	"github.com/Octops/gameserver-ingress-controller/pkg/handlers"
 	"github.com/Octops/gameserver-ingress-controller/pkg/reconcilers"
 	"github.com/sirupsen/logrus"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
 	"reflect"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -19,8 +19,8 @@ import (
 )
 
 type Options struct {
-	For  runtime.Object
-	Owns runtime.Object
+	For  client.Object
+	Owns client.Object
 }
 
 // GameServerController watches for events associated to a particular resource type like GameServers or Fleets.
@@ -61,8 +61,8 @@ func NewGameServerController(mgr manager.Manager, eventHandler handlers.EventHan
 				// It does not map ot the resource creation event triggered by Kubernetes
 				request := reconcile.Request{
 					NamespacedName: types.NamespacedName{
-						Namespace: createEvent.Meta.GetNamespace(),
-						Name:      createEvent.Meta.GetName(),
+						Namespace: createEvent.Object.GetNamespace(),
+						Name:      createEvent.Object.GetName(),
 					},
 				}
 
@@ -79,8 +79,8 @@ func NewGameServerController(mgr manager.Manager, eventHandler handlers.EventHan
 			UpdateFunc: func(updateEvent event.UpdateEvent, limitingInterface workqueue.RateLimitingInterface) {
 				request := reconcile.Request{
 					NamespacedName: types.NamespacedName{
-						Namespace: updateEvent.MetaNew.GetNamespace(),
-						Name:      updateEvent.MetaNew.GetName(),
+						Namespace: updateEvent.ObjectNew.GetNamespace(),
+						Name:      updateEvent.ObjectNew.GetName(),
 					},
 				}
 
@@ -98,8 +98,8 @@ func NewGameServerController(mgr manager.Manager, eventHandler handlers.EventHan
 
 				request := reconcile.Request{
 					NamespacedName: types.NamespacedName{
-						Namespace: deleteEvent.Meta.GetNamespace(),
-						Name:      deleteEvent.Meta.GetName(),
+						Namespace: deleteEvent.Object.GetNamespace(),
+						Name:      deleteEvent.Object.GetName(),
 					},
 				}
 

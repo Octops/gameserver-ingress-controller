@@ -2,6 +2,7 @@ package handlers
 
 import (
 	agonesv1 "agones.dev/agones/pkg/apis/agones/v1"
+	"context"
 	"fmt"
 	"github.com/Octops/gameserver-ingress-controller/internal/runtime"
 	"github.com/Octops/gameserver-ingress-controller/pkg/gameserver"
@@ -79,12 +80,13 @@ func (h *GameSeverEventHandler) Reconcile(gs *agonesv1.GameServer) error {
 		return errors.New(msg)
 	}
 
-	_, err := h.serviceReconciler.Reconcile(gs)
+	ctx := context.TODO()
+	_, err := h.serviceReconciler.Reconcile(ctx, gs)
 	if err != nil {
 		return errors.Wrap(err, "failed to reconcile gameserver/service")
 	}
 
-	_, err = h.ingressReconciler.Reconcile(gs)
+	_, err = h.ingressReconciler.Reconcile(ctx, gs)
 	if err != nil {
 		return errors.Wrap(err, "failed to reconcile gameserver/ingress")
 	}
