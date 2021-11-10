@@ -2,6 +2,7 @@ package reconcilers
 
 import (
 	agonesv1 "agones.dev/agones/pkg/apis/agones/v1"
+	"context"
 	"github.com/Octops/gameserver-ingress-controller/internal/runtime"
 	"github.com/Octops/gameserver-ingress-controller/pkg/gameserver"
 	"github.com/pkg/errors"
@@ -25,21 +26,21 @@ func NewServiceReconciler(client *kubernetes.Clientset) *ServiceReconciler {
 	}
 }
 
-func (r *ServiceReconciler) Reconcile(gs *agonesv1.GameServer) (*corev1.Service, error) {
-	service, err := r.Client.CoreV1().Services(gs.Namespace).Get(gs.Name, metav1.GetOptions{})
+func (r *ServiceReconciler) Reconcile(ctx context.Context, gs *agonesv1.GameServer) (*corev1.Service, error) {
+	service, err := r.Client.CoreV1().Services(gs.Namespace).Get(ctx, gs.Name, metav1.GetOptions{})
 	if err != nil {
 		if !k8serrors.IsNotFound(err) {
 			return &corev1.Service{}, errors.Wrapf(err, "error retrieving Service %s from namespace %s", gs.Name, gs.Namespace)
 		}
 
-		return r.reconcileNotFound(gs)
+		return r.reconcileNotFound(ctx, gs)
 	}
 
 	//TODO: Validate if details still match the GS info
 	return service, nil
 }
 
-func (r *ServiceReconciler) reconcileNotFound(gs *agonesv1.GameServer) (*corev1.Service, error) {
+func (r *ServiceReconciler) reconcileNotFound(ctx context.Context, gs *agonesv1.GameServer) (*corev1.Service, error) {
 	ref := metav1.NewControllerRef(gs, agonesv1.SchemeGroupVersion.WithKind("GameServer"))
 
 	service := &corev1.Service{
@@ -68,7 +69,7 @@ func (r *ServiceReconciler) reconcileNotFound(gs *agonesv1.GameServer) (*corev1.
 		},
 	}
 
-	result, err := r.Client.CoreV1().Services(gs.Namespace).Create(service)
+	result, err := r.Client.CoreV1().Services(gs.Namespace).Create(ctx, service, metav1.CreateOptions{})
 	if err != nil {
 		r.logger.WithError(err).Errorf("failed to create service %s", service.Name)
 		return nil, errors.Wrap(err, "failed to create service")

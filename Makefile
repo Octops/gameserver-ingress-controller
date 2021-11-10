@@ -1,4 +1,4 @@
-.PHONY: all build clean get test up deploy-local down docker
+.PHONY: all build clean install get test up deploy-local down docker
 
 ## overridable Makefile variables
 # test to run
@@ -100,6 +100,9 @@ latest: docker
 release: docker
 	docker tag $(DOCKER_IMAGE_TAG) $(IMAGE_REPO):$(RELEASE_TAG)
 	docker push $(IMAGE_REPO):$(RELEASE_TAG)
+
+install: release
+	kubectl apply -f deploy/install.yaml
 
 up:
 	@echo Starting services

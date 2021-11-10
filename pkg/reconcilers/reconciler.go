@@ -1,6 +1,7 @@
 package reconcilers
 
 import (
+	"context"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -23,7 +24,7 @@ type Reconciler struct {
 // where control over very specific events matter. Right now it is just a STDOUT output.
 // Reconcile is called on every reconcile event. It does not differ between add, update, delete.
 // Its function is purely informative and events are handled back to the broadcaster specific event handlers.
-func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) {
+func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	//ctx := context.Background()
 	//obj := r.obj.DeepCopyObject()
 	//if err := r.Get(ctx, req.NamespacedName, obj); err != nil {
