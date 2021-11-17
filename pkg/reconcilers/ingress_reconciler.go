@@ -52,18 +52,16 @@ func (r *IngressReconciler) Reconcile(ctx context.Context, gs *agonesv1.GameServ
 }
 
 func (r *IngressReconciler) reconcileNotFound(ctx context.Context, gs *agonesv1.GameServer) (*networkingv1.Ingress, error) {
-	ref := metav1.NewControllerRef(gs, agonesv1.SchemeGroupVersion.WithKind("GameServer"))
-
 	if domain, ok := gameserver.HasAnnotation(gs, gameserver.OctopsAnnotationIngressDomain); !ok || len(domain) == 0 {
 		return &networkingv1.Ingress{}, errors.Errorf("failed to create ingress, the \"%s\" annotation is either not present or null on the gameserver \"%s\"", gameserver.OctopsAnnotationIngressDomain, gs.Name)
 	}
 
-	// TODO: Use octops.io/terminate-tls to define the issuer, octops.io/issuer-tls-name
+	ref := metav1.NewControllerRef(gs, agonesv1.SchemeGroupVersion.WithKind("GameServer"))
 	ingress := &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: gs.Name,
 			Labels: map[string]string{
-				"agones.dev/gameserver": gs.Name,
+				gameserver.AgonesGameServerNameLabel: gs.Name,
 			},
 			OwnerReferences: []metav1.OwnerReference{*ref},
 		},

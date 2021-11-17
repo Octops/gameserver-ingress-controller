@@ -8,7 +8,9 @@ const (
 	OctopsAnnotationIngressFQDN   = "octops.io/gameserver-ingress-fqdn"
 	OctopsAnnotationTerminateTLS  = "octops.io/terminate-tls"
 	OctopsAnnotationIssuerName    = "octops.io/issuer-tls-name"
-	CertManagerAnnotationIssuer   = "cert-manager.io/issuer"
+
+	CertManagerAnnotationIssuer = "cert-manager.io/issuer"
+	AgonesGameServerNameLabel   = "agones.dev/gameserver"
 )
 
 func FromObject(obj interface{}) *agonesv1.GameServer {

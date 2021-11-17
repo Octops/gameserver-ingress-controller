@@ -75,7 +75,7 @@ func NewIngress(gs *agonesv1.GameServer, options ...IngressOption) (*networkingv
 		ObjectMeta: metav1.ObjectMeta{
 			Name: gs.Name,
 			Labels: map[string]string{
-				"agones.dev/gameserver": gs.Name,
+				gameserver.AgonesGameServerNameLabel: gs.Name,
 			},
 			OwnerReferences: []metav1.OwnerReference{*ref},
 		},

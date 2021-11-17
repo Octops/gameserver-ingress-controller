@@ -30,8 +30,8 @@ func TestNewIngressForDomainRoutingMode(t *testing.T) {
 
 		require.NoError(t, err)
 		require.Equal(t, gs.Name, ig.Name)
-		require.Contains(t, ig.Labels, "agones.dev/gameserver")
-		require.Equal(t, ig.Labels["agones.dev/gameserver"], gs.Name)
+		require.Contains(t, ig.Labels, gameserver.AgonesGameServerNameLabel)
+		require.Equal(t, ig.Labels[gameserver.AgonesGameServerNameLabel], gs.Name)
 		require.Equal(t, []metav1.OwnerReference{*ref}, ig.OwnerReferences)
 		require.Equal(t, tls, ig.Spec.TLS)
 		require.Equal(t, rules, ig.Spec.Rules)
