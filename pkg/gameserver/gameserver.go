@@ -3,7 +3,9 @@ package gameserver
 import agonesv1 "agones.dev/agones/pkg/apis/agones/v1"
 
 const (
+	OctopsAnnotationIngressMode   = "octops.io/gameserver-ingress-mode"
 	OctopsAnnotationIngressDomain = "octops.io/gameserver-ingress-domain"
+	OctopsAnnotationIngressFQDN   = "octops.io/gameserver-ingress-fqdn"
 	OctopsAnnotationTerminateTLS  = "octops.io/terminate-tls"
 	OctopsAnnotationIssuerName    = "octops.io/issuer-tls-name"
 	CertManagerAnnotationIssuer   = "cert-manager.io/issuer"
