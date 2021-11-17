@@ -15,6 +15,13 @@ import (
 	"strconv"
 )
 
+type IngressRoutingMode string
+
+const (
+	IngressRoutingModeDomain IngressRoutingMode = "domain"
+	IngressRoutingModePath   IngressRoutingMode = "path"
+)
+
 var defaultPathType = networkingv1.PathTypePrefix
 
 type IngressReconciler struct {
