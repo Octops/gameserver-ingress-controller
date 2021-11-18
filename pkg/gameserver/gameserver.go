@@ -1,12 +1,23 @@
 package gameserver
 
-import agonesv1 "agones.dev/agones/pkg/apis/agones/v1"
+import (
+	agonesv1 "agones.dev/agones/pkg/apis/agones/v1"
+)
+
+type IngressRoutingMode string
 
 const (
+	IngressRoutingModeDomain IngressRoutingMode = "domain"
+	IngressRoutingModePath   IngressRoutingMode = "path"
+
+	OctopsAnnotationIngressMode   = "octops.io/gameserver-ingress-mode"
 	OctopsAnnotationIngressDomain = "octops.io/gameserver-ingress-domain"
+	OctopsAnnotationIngressFQDN   = "octops.io/gameserver-ingress-fqdn"
 	OctopsAnnotationTerminateTLS  = "octops.io/terminate-tls"
 	OctopsAnnotationIssuerName    = "octops.io/issuer-tls-name"
-	CertManagerAnnotationIssuer   = "cert-manager.io/issuer"
+
+	CertManagerAnnotationIssuer = "cert-manager.io/issuer"
+	AgonesGameServerNameLabel   = "agones.dev/gameserver"
 )
 
 func FromObject(obj interface{}) *agonesv1.GameServer {
@@ -47,4 +58,20 @@ func IsReady(gs *agonesv1.GameServer) bool {
 	}
 
 	return gs.Status.State == agonesv1.GameServerStateReady
+}
+
+func GetIngressRoutingMode(gs *agonesv1.GameServer) IngressRoutingMode {
+	if mode, ok := HasAnnotation(gs, OctopsAnnotationIngressMode); ok {
+		return IngressRoutingMode(mode)
+	}
+
+	return IngressRoutingModeDomain
+}
+
+func GetTLSCertIssuer(gs *agonesv1.GameServer) string {
+	if name, ok := HasAnnotation(gs, OctopsAnnotationIssuerName); ok {
+		return name
+	}
+
+	return ""
 }
