@@ -31,6 +31,7 @@ func TestNewIngressForDomainRoutingMode(t *testing.T) {
 
 		require.NoError(t, err)
 		require.Equal(t, gs.Name, ig.Name)
+		require.Equal(t, gameserver.GetGameServerPort(gs).Port, ig.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number)
 		require.Contains(t, ig.Labels, gameserver.AgonesGameServerNameLabel)
 		require.Equal(t, ig.Labels[gameserver.AgonesGameServerNameLabel], gs.Name)
 		require.Equal(t, []metav1.OwnerReference{*ref}, ig.OwnerReferences)
@@ -47,6 +48,13 @@ func newGameServer(annotations map[string]string) *agonesv1.GameServer {
 			Name:        "simple-gameserver",
 			Namespace:   "default",
 			Annotations: annotations,
+		},
+		Status: agonesv1.GameServerStatus{
+			Ports: []agonesv1.GameServerStatusPort{
+				{
+					Port: 7771,
+				},
+			},
 		},
 	}
 }

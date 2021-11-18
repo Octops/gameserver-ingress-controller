@@ -83,7 +83,7 @@ func WithIngressRule(mode IngressRoutingMode) IngressOption {
 			fqdn, path = fmt.Sprintf("%s.%s", gs.Name, gs.Annotations[gameserver.OctopsAnnotationIngressDomain]), "/"
 		}
 
-		ingress.Spec.Rules = newIngressRule(fqdn, path, gs.Name, gameserver.GetGameServerContainerPort(gs))
+		ingress.Spec.Rules = newIngressRule(fqdn, path, gs.Name, gameserver.GetGameServerPort(gs).Port)
 
 		return nil
 	}
