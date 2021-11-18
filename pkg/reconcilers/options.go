@@ -14,23 +14,40 @@ type IngressOption func(gs *agonesv1.GameServer, ingress *networkingv1.Ingress) 
 
 func WithTLS(mode gameserver.IngressRoutingMode) IngressOption {
 	return func(gs *agonesv1.GameServer, ingress *networkingv1.Ingress) error {
-		tlsForDomain := func(gs *agonesv1.GameServer) (fqdn, secretName string) {
-			return fmt.Sprintf("%s.%s", gs.Name, gs.Annotations[gameserver.OctopsAnnotationIngressDomain]), fmt.Sprintf("%s-tls", gs.Name)
+		errMsgInvalidAnnotation := func(mode, annotation string) error {
+			return errors.Errorf("ingress routing mode %s requires the annotation %s to be set", mode, annotation)
 		}
 
-		tlsForPath := func(gs *agonesv1.GameServer) (fqdn, secretName string) {
-			return gs.Annotations[gameserver.OctopsAnnotationIngressFQDN], fmt.Sprintf("%s-tls", gs.Name)
+		tlsForDomain := func(gs *agonesv1.GameServer) (fqdn, secretName string, err error) {
+			if value, ok := gameserver.HasAnnotation(gs, gameserver.OctopsAnnotationIngressDomain); !ok {
+				return "", "", errMsgInvalidAnnotation(value, gameserver.OctopsAnnotationIngressDomain)
+			}
+
+			return fmt.Sprintf("%s.%s", gs.Name, gs.Annotations[gameserver.OctopsAnnotationIngressDomain]), fmt.Sprintf("%s-tls", gs.Name), nil
+		}
+
+		tlsForPath := func(gs *agonesv1.GameServer) (fqdn, secretName string, err error) {
+			if value, ok := gameserver.HasAnnotation(gs, gameserver.OctopsAnnotationIngressFQDN); !ok {
+				return "", "", errMsgInvalidAnnotation(value, gameserver.OctopsAnnotationIngressFQDN)
+			}
+
+			return gs.Annotations[gameserver.OctopsAnnotationIngressFQDN], fmt.Sprintf("%s-tls", gs.Name), nil
 		}
 
 		var host, secret string
+		var err error
 
 		switch mode {
 		case gameserver.IngressRoutingModePath:
-			host, secret = tlsForPath(gs)
+			host, secret, err = tlsForPath(gs)
 		case gameserver.IngressRoutingModeDomain:
 			fallthrough
 		default:
-			host, secret = tlsForDomain(gs)
+			host, secret, err = tlsForDomain(gs)
+		}
+
+		if err != nil {
+			return err
 		}
 
 		ingress.Spec.TLS = []networkingv1.IngressTLS{
