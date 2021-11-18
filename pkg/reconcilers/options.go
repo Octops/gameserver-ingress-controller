@@ -6,38 +6,13 @@ import (
 	"github.com/Octops/gameserver-ingress-controller/pkg/gameserver"
 	"github.com/pkg/errors"
 	networkingv1 "k8s.io/api/networking/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"strconv"
 	"strings"
 )
 
 type IngressOption func(gs *agonesv1.GameServer, ingress *networkingv1.Ingress) error
 
-func NewIngress(gs *agonesv1.GameServer, options ...IngressOption) (*networkingv1.Ingress, error) {
-	if gs == nil {
-		return nil, errors.New("gameserver can't be nil")
-	}
-
-	ref := metav1.NewControllerRef(gs, agonesv1.SchemeGroupVersion.WithKind("GameServer"))
-	ig := &networkingv1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: gs.Name,
-			Labels: map[string]string{
-				gameserver.AgonesGameServerNameLabel: gs.Name,
-			},
-			OwnerReferences: []metav1.OwnerReference{*ref},
-		},
-	}
-
-	for _, opt := range options {
-		if err := opt(gs, ig); err != nil {
-			return nil, err
-		}
-	}
-
-	return ig, nil
-}
-
-func WithTLS(mode IngressRoutingMode) IngressOption {
+func WithTLS(mode gameserver.IngressRoutingMode) IngressOption {
 	return func(gs *agonesv1.GameServer, ingress *networkingv1.Ingress) error {
 		tlsForDomain := func(gs *agonesv1.GameServer) (fqdn, secretName string) {
 			return fmt.Sprintf("%s.%s", gs.Name, gs.Annotations[gameserver.OctopsAnnotationIngressDomain]), fmt.Sprintf("%s-tls", gs.Name)
@@ -50,9 +25,9 @@ func WithTLS(mode IngressRoutingMode) IngressOption {
 		var host, secret string
 
 		switch mode {
-		case IngressRoutingModePath:
+		case gameserver.IngressRoutingModePath:
 			host, secret = tlsForPath(gs)
-		case IngressRoutingModeDomain:
+		case gameserver.IngressRoutingModeDomain:
 			fallthrough
 		default:
 			host, secret = tlsForDomain(gs)
@@ -71,8 +46,38 @@ func WithTLS(mode IngressRoutingMode) IngressOption {
 	}
 }
 
-func WithTLSIssuer(issuerName string) IngressOption {
+func WithIngressRule(mode gameserver.IngressRoutingMode) IngressOption {
 	return func(gs *agonesv1.GameServer, ingress *networkingv1.Ingress) error {
+		var host, path string
+
+		switch mode {
+		case gameserver.IngressRoutingModePath:
+			host, path = gs.Annotations[gameserver.OctopsAnnotationIngressFQDN], "/"+gs.Name
+		case gameserver.IngressRoutingModeDomain:
+			fallthrough
+		default:
+			host, path = fmt.Sprintf("%s.%s", gs.Name, gs.Annotations[gameserver.OctopsAnnotationIngressDomain]), "/"
+		}
+
+		ingress.Spec.Rules = newIngressRule(host, path, gs.Name, gameserver.GetGameServerPort(gs).Port)
+
+		return nil
+	}
+}
+
+func WithTLSCertIssuer(issuerName string) IngressOption {
+	return func(gs *agonesv1.GameServer, ingress *networkingv1.Ingress) error {
+		terminate, ok := gameserver.HasAnnotation(gs, gameserver.OctopsAnnotationTerminateTLS)
+		if !ok || len(terminate) == 0 {
+			return nil
+		}
+
+		if terminateTLS, err := strconv.ParseBool(terminate); err != nil {
+			return errors.Errorf("annotation %s for %s must be \"true\" or \"false\"", gameserver.OctopsAnnotationTerminateTLS, gs.Name)
+		} else if terminateTLS == false {
+			return nil
+		}
+
 		if len(issuerName) == 0 {
 			return errors.Errorf("annotation %s for %s must be present and not null, check your Fleet or GameServer manifest.", gameserver.OctopsAnnotationIssuerName, gs.Name)
 		}
@@ -80,25 +85,6 @@ func WithTLSIssuer(issuerName string) IngressOption {
 		ingress.Annotations = map[string]string{
 			gameserver.CertManagerAnnotationIssuer: issuerName,
 		}
-
-		return nil
-	}
-}
-
-func WithIngressRule(mode IngressRoutingMode) IngressOption {
-	return func(gs *agonesv1.GameServer, ingress *networkingv1.Ingress) error {
-		var host, path string
-
-		switch mode {
-		case IngressRoutingModePath:
-			host, path = gs.Annotations[gameserver.OctopsAnnotationIngressFQDN], "/"+gs.Name
-		case IngressRoutingModeDomain:
-			fallthrough
-		default:
-			host, path = fmt.Sprintf("%s.%s", gs.Name, gs.Annotations[gameserver.OctopsAnnotationIngressDomain]), "/"
-		}
-
-		ingress.Spec.Rules = newIngressRule(host, path, gs.Name, gameserver.GetGameServerPort(gs).Port)
 
 		return nil
 	}
