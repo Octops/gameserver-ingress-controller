@@ -69,7 +69,6 @@ func (h GameSeverEventHandler) Client() *kubernetes.Clientset {
 }
 
 func (h *GameSeverEventHandler) Reconcile(gs *agonesv1.GameServer) error {
-	//TODO: Validate required annotations and record errors as events on GS
 	if _, ok := gameserver.HasAnnotation(gs, gameserver.OctopsAnnotationIngressMode); !ok {
 		h.logger.Debugf("skipping gameserver %s/%s, annotation %s not present", gs.Namespace, gs.Name, gameserver.OctopsAnnotationIngressMode)
 		return nil
@@ -77,9 +76,9 @@ func (h *GameSeverEventHandler) Reconcile(gs *agonesv1.GameServer) error {
 
 	if gameserver.IsReady(gs) == false {
 		msg := fmt.Sprintf("gameserver %s/%s not ready", gs.Namespace, gs.Name)
-		h.logger.Debug(msg)
+		h.logger.Info(msg)
 
-		return errors.New(msg)
+		return nil
 	}
 
 	ctx := context.TODO()
