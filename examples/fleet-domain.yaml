@@ -15,7 +15,7 @@
 apiVersion: "agones.dev/v1"
 kind: Fleet
 metadata:
-  name: octops
+  name: octops-domain
   labels:
     cluster: gke-1.17
     region: us-east-1
@@ -27,6 +27,7 @@ spec:
         cluster: gke-1.17
         region: us-east-1
       annotations:
+        octops.io/gameserver-ingress-mode: "domain"
         octops.io/gameserver-ingress-domain: "mygame.com"
         octops.io/terminate-tls: "true"
         octops.io/issuer-tls-name: "selfsigned-issuer"
@@ -39,9 +40,9 @@ spec:
         spec:
           containers:
             - name: gameserver
-              #image: gcr.io/agones-images/udp-server:0.21
+              image: gcr.io/agones-images/udp-server:0.21
               imagePullPolicy: Always
-              image: octops/gameserver-http:latest
+              #image: octops/gameserver-http:latest
               resources:
                 requests:
                   memory: "64Mi"
