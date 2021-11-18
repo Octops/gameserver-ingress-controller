@@ -53,7 +53,7 @@ func (r *IngressReconciler) reconcileNotFound(ctx context.Context, gs *agonesv1.
 
 	ingress, err := newIngress(gs, opts...)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to create ingress %s for gameserver %s", ingress.Name, gs.Name)
+		return nil, errors.Wrapf(err, "failed to create ingress for gameserver %s", gs.Name)
 	}
 
 	result, err := r.Client.NetworkingV1().Ingresses(gs.Namespace).Create(ctx, ingress, metav1.CreateOptions{})

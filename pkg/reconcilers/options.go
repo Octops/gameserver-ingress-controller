@@ -19,19 +19,21 @@ func WithTLS(mode gameserver.IngressRoutingMode) IngressOption {
 		}
 
 		tlsForDomain := func(gs *agonesv1.GameServer) (fqdn, secretName string, err error) {
-			if value, ok := gameserver.HasAnnotation(gs, gameserver.OctopsAnnotationIngressDomain); !ok {
-				return "", "", errMsgInvalidAnnotation(value, gameserver.OctopsAnnotationIngressDomain)
+			domain, ok := gameserver.HasAnnotation(gs, gameserver.OctopsAnnotationIngressDomain)
+			if !ok {
+				return "", "", errMsgInvalidAnnotation(mode.String(), gameserver.OctopsAnnotationIngressDomain)
 			}
 
-			return fmt.Sprintf("%s.%s", gs.Name, gs.Annotations[gameserver.OctopsAnnotationIngressDomain]), fmt.Sprintf("%s-tls", gs.Name), nil
+			return fmt.Sprintf("%s.%s", gs.Name, domain), fmt.Sprintf("%s-tls", gs.Name), nil
 		}
 
 		tlsForPath := func(gs *agonesv1.GameServer) (fqdn, secretName string, err error) {
-			if value, ok := gameserver.HasAnnotation(gs, gameserver.OctopsAnnotationIngressFQDN); !ok {
-				return "", "", errMsgInvalidAnnotation(value, gameserver.OctopsAnnotationIngressFQDN)
+			fqdn, ok := gameserver.HasAnnotation(gs, gameserver.OctopsAnnotationIngressFQDN)
+			if !ok {
+				return "", "", errMsgInvalidAnnotation(mode.String(), gameserver.OctopsAnnotationIngressFQDN)
 			}
 
-			return gs.Annotations[gameserver.OctopsAnnotationIngressFQDN], fmt.Sprintf("%s-tls", gs.Name), nil
+			return fqdn, fmt.Sprintf("%s-tls", gs.Name), nil
 		}
 
 		var host, secret string
@@ -65,19 +67,30 @@ func WithTLS(mode gameserver.IngressRoutingMode) IngressOption {
 
 func WithIngressRule(mode gameserver.IngressRoutingMode) IngressOption {
 	return func(gs *agonesv1.GameServer, ingress *networkingv1.Ingress) error {
+		errMsgInvalidAnnotation := func(mode, annotation, gsName string) error {
+			return errors.Errorf("ingress routing mode %s requires the annotation %s to be present on %s, check your Fleet or GameServer manifest.", mode, annotation, gsName)
+		}
+
 		var host, path string
 
 		switch mode {
 		case gameserver.IngressRoutingModePath:
-			host, path = gs.Annotations[gameserver.OctopsAnnotationIngressFQDN], "/"+gs.Name
+			fqdn, ok := gameserver.HasAnnotation(gs, gameserver.OctopsAnnotationIngressFQDN)
+			if !ok {
+				return errMsgInvalidAnnotation(mode.String(), gameserver.OctopsAnnotationIngressFQDN, gs.Name)
+			}
+			host, path = fqdn, "/"+gs.Name
 		case gameserver.IngressRoutingModeDomain:
 			fallthrough
 		default:
-			host, path = fmt.Sprintf("%s.%s", gs.Name, gs.Annotations[gameserver.OctopsAnnotationIngressDomain]), "/"
+			domain, ok := gameserver.HasAnnotation(gs, gameserver.OctopsAnnotationIngressDomain)
+			if !ok {
+				return errMsgInvalidAnnotation(mode.String(), gameserver.OctopsAnnotationIngressDomain, gs.Name)
+			}
+			host, path = fmt.Sprintf("%s.%s", gs.Name, domain), "/"
 		}
 
 		ingress.Spec.Rules = newIngressRule(host, path, gs.Name, gameserver.GetGameServerPort(gs).Port)
-
 		return nil
 	}
 }
@@ -96,7 +109,7 @@ func WithTLSCertIssuer(issuerName string) IngressOption {
 		}
 
 		if len(issuerName) == 0 {
-			return errors.Errorf("annotation %s for %s must be present and not null, check your Fleet or GameServer manifest.", gameserver.OctopsAnnotationIssuerName, gs.Name)
+			return errors.Errorf("annotation %s for %s must be present, check your Fleet or GameServer manifest.", gameserver.OctopsAnnotationIssuerName, gs.Name)
 		}
 
 		ingress.Annotations = map[string]string{

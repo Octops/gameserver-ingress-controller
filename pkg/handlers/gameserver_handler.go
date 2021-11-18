@@ -35,7 +35,7 @@ func NewGameSeverEventHandler(config *rest.Config) *GameSeverEventHandler {
 }
 
 func (h *GameSeverEventHandler) OnAdd(obj interface{}) error {
-	h.logger.Infof("ADD: %s", obj.(*agonesv1.GameServer).Name)
+	h.logger.WithField("event", "added").Infof("%s", obj.(*agonesv1.GameServer).Name)
 
 	gs := gameserver.FromObject(obj)
 
@@ -47,7 +47,7 @@ func (h *GameSeverEventHandler) OnAdd(obj interface{}) error {
 }
 
 func (h *GameSeverEventHandler) OnUpdate(oldObj interface{}, newObj interface{}) error {
-	h.logger.Infof("UPDATE: %s", newObj.(*agonesv1.GameServer).Name)
+	h.logger.WithField("event", "updated").Infof("%s", newObj.(*agonesv1.GameServer).Name)
 
 	gs := gameserver.FromObject(newObj)
 
@@ -59,7 +59,7 @@ func (h *GameSeverEventHandler) OnUpdate(oldObj interface{}, newObj interface{})
 }
 
 func (h *GameSeverEventHandler) OnDelete(obj interface{}) error {
-	h.logger.Infof("DELETE: %s", obj.(*agonesv1.GameServer).Name)
+	h.logger.WithField("event", "deleted").Infof("%s", obj.(*agonesv1.GameServer).Name)
 
 	return nil
 }
@@ -69,16 +69,16 @@ func (h GameSeverEventHandler) Client() *kubernetes.Clientset {
 }
 
 func (h *GameSeverEventHandler) Reconcile(gs *agonesv1.GameServer) error {
-	//TODO: Validate required annotations and record errors as events on GS
 	if _, ok := gameserver.HasAnnotation(gs, gameserver.OctopsAnnotationIngressMode); !ok {
+		h.logger.Debugf("skipping gameserver %s/%s, annotation %s not present", gs.Namespace, gs.Name, gameserver.OctopsAnnotationIngressMode)
 		return nil
 	}
 
 	if gameserver.IsReady(gs) == false {
 		msg := fmt.Sprintf("gameserver %s/%s not ready", gs.Namespace, gs.Name)
-		h.logger.Debug(msg)
+		h.logger.Info(msg)
 
-		return errors.New(msg)
+		return nil
 	}
 
 	ctx := context.TODO()
@@ -89,7 +89,7 @@ func (h *GameSeverEventHandler) Reconcile(gs *agonesv1.GameServer) error {
 
 	_, err = h.ingressReconciler.Reconcile(ctx, gs)
 	if err != nil {
-		return errors.Wrap(err, "failed to reconcile gameserver/ingress")
+		return errors.Wrap(err, "failed to reconcile ingress")
 	}
 
 	return nil

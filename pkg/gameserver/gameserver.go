@@ -20,6 +20,10 @@ const (
 	AgonesGameServerNameLabel   = "agones.dev/gameserver"
 )
 
+func (m IngressRoutingMode) String() string {
+	return string(m)
+}
+
 func FromObject(obj interface{}) *agonesv1.GameServer {
 	if gs, ok := obj.(*agonesv1.GameServer); ok {
 		return gs
