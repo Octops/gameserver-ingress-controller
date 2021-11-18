@@ -39,19 +39,34 @@ func NewIngress(gs *agonesv1.GameServer, options ...IngressOption) (*networkingv
 
 func WithTLS(mode IngressRoutingMode) IngressOption {
 	return func(gs *agonesv1.GameServer, ingress *networkingv1.Ingress) error {
-		tlsForDomain := func(host, domain string) (fqdn, secretName string) {
-			return fmt.Sprintf("%s.%s", host, domain), fmt.Sprintf("%s-tls", host)
+		tlsForDomain := func(gs *agonesv1.GameServer) (fqdn, secretName string) {
+			return fmt.Sprintf("%s.%s", gs.Name, gs.Annotations[gameserver.OctopsAnnotationIngressDomain]), fmt.Sprintf("%s-tls", gs.Name)
 		}
 
-		fqdn, secret := tlsForDomain(gs.Name, gs.Annotations[gameserver.OctopsAnnotationIngressDomain])
+		tlsForPath := func(gs *agonesv1.GameServer) (fqdn, secretName string) {
+			return gs.Annotations[gameserver.OctopsAnnotationIngressFQDN], fmt.Sprintf("%s-tls", gs.Name)
+		}
+
+		var host, secret string
+
+		switch mode {
+		case IngressRoutingModePath:
+			host, secret = tlsForPath(gs)
+		case IngressRoutingModeDomain:
+			fallthrough
+		default:
+			host, secret = tlsForDomain(gs)
+		}
+
 		ingress.Spec.TLS = []networkingv1.IngressTLS{
 			{
 				Hosts: []string{
-					fqdn,
+					host,
 				},
 				SecretName: secret,
 			},
 		}
+
 		return nil
 	}
 }
@@ -72,18 +87,18 @@ func WithTLSIssuer(issuerName string) IngressOption {
 
 func WithIngressRule(mode IngressRoutingMode) IngressOption {
 	return func(gs *agonesv1.GameServer, ingress *networkingv1.Ingress) error {
-		var fqdn, path string
+		var host, path string
 
 		switch mode {
 		case IngressRoutingModePath:
-			fqdn, path = gs.Annotations[gameserver.OctopsAnnotationIngressFQDN], gs.Name
+			host, path = gs.Annotations[gameserver.OctopsAnnotationIngressFQDN], "/"+gs.Name
 		case IngressRoutingModeDomain:
 			fallthrough
 		default:
-			fqdn, path = fmt.Sprintf("%s.%s", gs.Name, gs.Annotations[gameserver.OctopsAnnotationIngressDomain]), "/"
+			host, path = fmt.Sprintf("%s.%s", gs.Name, gs.Annotations[gameserver.OctopsAnnotationIngressDomain]), "/"
 		}
 
-		ingress.Spec.Rules = newIngressRule(fqdn, path, gs.Name, gameserver.GetGameServerPort(gs).Port)
+		ingress.Spec.Rules = newIngressRule(host, path, gs.Name, gameserver.GetGameServerPort(gs).Port)
 
 		return nil
 	}
@@ -115,11 +130,11 @@ func newIngressRule(host, path, name string, port int32) []networkingv1.IngressR
 	}
 }
 
-func newIngressTLS(fqdn, secretName string) []networkingv1.IngressTLS {
+func newIngressTLS(host, secretName string) []networkingv1.IngressTLS {
 	return []networkingv1.IngressTLS{
 		{
 			Hosts: []string{
-				strings.TrimSpace(fqdn),
+				strings.TrimSpace(host),
 			},
 			SecretName: fmt.Sprintf("%s-tls", strings.TrimSpace(secretName)),
 		},
