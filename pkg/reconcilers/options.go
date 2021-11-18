@@ -12,6 +12,31 @@ import (
 
 type IngressOption func(gs *agonesv1.GameServer, ingress *networkingv1.Ingress) error
 
+func NewIngress(gs *agonesv1.GameServer, options ...IngressOption) (*networkingv1.Ingress, error) {
+	if gs == nil {
+		return nil, errors.New("gameserver can't be nil")
+	}
+
+	ref := metav1.NewControllerRef(gs, agonesv1.SchemeGroupVersion.WithKind("GameServer"))
+	ig := &networkingv1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: gs.Name,
+			Labels: map[string]string{
+				gameserver.AgonesGameServerNameLabel: gs.Name,
+			},
+			OwnerReferences: []metav1.OwnerReference{*ref},
+		},
+	}
+
+	for _, opt := range options {
+		if err := opt(gs, ig); err != nil {
+			return nil, err
+		}
+	}
+
+	return ig, nil
+}
+
 func WithTLS(mode IngressRoutingMode) IngressOption {
 	return func(gs *agonesv1.GameServer, ingress *networkingv1.Ingress) error {
 		tlsForDomain := func(host, domain string) (fqdn, secretName string) {
@@ -45,7 +70,7 @@ func WithTLSIssuer(issuerName string) IngressOption {
 	}
 }
 
-func WithRules(mode IngressRoutingMode) IngressOption {
+func WithIngressRule(mode IngressRoutingMode) IngressOption {
 	return func(gs *agonesv1.GameServer, ingress *networkingv1.Ingress) error {
 		var fqdn, path string
 
@@ -58,39 +83,13 @@ func WithRules(mode IngressRoutingMode) IngressOption {
 			fqdn, path = fmt.Sprintf("%s.%s", gs.Name, gs.Annotations[gameserver.OctopsAnnotationIngressDomain]), "/"
 		}
 
-		rules := newIngressPathRules(fqdn, path, gs.Name, gameserver.GetGameServerContainerPort(gs))
-		ingress.Spec.Rules = rules
+		ingress.Spec.Rules = newIngressRule(fqdn, path, gs.Name, gameserver.GetGameServerContainerPort(gs))
 
 		return nil
 	}
 }
 
-func NewIngress(gs *agonesv1.GameServer, options ...IngressOption) (*networkingv1.Ingress, error) {
-	if gs == nil {
-		return nil, errors.New("gameserver can't be nil")
-	}
-
-	ref := metav1.NewControllerRef(gs, agonesv1.SchemeGroupVersion.WithKind("GameServer"))
-	ig := &networkingv1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: gs.Name,
-			Labels: map[string]string{
-				gameserver.AgonesGameServerNameLabel: gs.Name,
-			},
-			OwnerReferences: []metav1.OwnerReference{*ref},
-		},
-	}
-
-	for _, opt := range options {
-		if err := opt(gs, ig); err != nil {
-			return nil, err
-		}
-	}
-
-	return ig, nil
-}
-
-func newIngressPathRules(host, path, name string, port int32) []networkingv1.IngressRule {
+func newIngressRule(host, path, name string, port int32) []networkingv1.IngressRule {
 	return []networkingv1.IngressRule{
 		{
 			Host: host,

@@ -19,12 +19,13 @@ func TestNewIngressForDomainRoutingMode(t *testing.T) {
 		fqdn := fmt.Sprintf("%s.%s", gs.Name, gs.Annotations[gameserver.OctopsAnnotationIngressDomain])
 		ref := metav1.NewControllerRef(gs, agonesv1.SchemeGroupVersion.WithKind("GameServer"))
 		tls := newIngressTLS(fqdn, gs.Name)
-		rules := newIngressPathRules(fmt.Sprintf("%s.%s", gs.Name, gs.Annotations[gameserver.OctopsAnnotationIngressDomain]), "/", gs.Name, gameserver.GetGameServerPort(gs).Port)
+		rules := newIngressRule(fmt.Sprintf("%s.%s", gs.Name, gs.Annotations[gameserver.OctopsAnnotationIngressDomain]), "/", gs.Name, gameserver.GetGameServerPort(gs).Port)
+		issuerName := "selfSigned"
 
 		opts := []IngressOption{
+			WithIngressRule(IngressRoutingModeDomain),
 			WithTLS(IngressRoutingModeDomain),
-			WithRules(IngressRoutingModeDomain),
-			WithTLSIssuer("selfSigned"),
+			WithTLSIssuer(issuerName),
 		}
 		ig, err := NewIngress(gs, opts...)
 
@@ -36,7 +37,7 @@ func TestNewIngressForDomainRoutingMode(t *testing.T) {
 		require.Equal(t, tls, ig.Spec.TLS)
 		require.Equal(t, rules, ig.Spec.Rules)
 		require.Contains(t, ig.Annotations, gameserver.CertManagerAnnotationIssuer)
-		require.Equal(t, "selfSigned", ig.Annotations[gameserver.CertManagerAnnotationIssuer], "selfSigned")
+		require.Equal(t, issuerName, ig.Annotations[gameserver.CertManagerAnnotationIssuer])
 	})
 }
 
