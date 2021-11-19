@@ -11,6 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/record"
 )
 
 type GameSeverEventHandler struct {
@@ -20,7 +21,7 @@ type GameSeverEventHandler struct {
 	ingressReconciler *reconcilers.IngressReconciler
 }
 
-func NewGameSeverEventHandler(config *rest.Config) *GameSeverEventHandler {
+func NewGameSeverEventHandler(config *rest.Config, recorder record.EventRecorder) *GameSeverEventHandler {
 	client, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		runtime.Logger().WithError(err).Fatal("failed to create kubernetes client")
@@ -29,8 +30,8 @@ func NewGameSeverEventHandler(config *rest.Config) *GameSeverEventHandler {
 	return &GameSeverEventHandler{
 		logger:            runtime.Logger().WithField("role", "event_handler"),
 		client:            client,
-		serviceReconciler: reconcilers.NewServiceReconciler(client),
-		ingressReconciler: reconcilers.NewIngressReconciler(client),
+		serviceReconciler: reconcilers.NewServiceReconciler(client, recorder),
+		ingressReconciler: reconcilers.NewIngressReconciler(client, recorder),
 	}
 }
 
@@ -46,7 +47,7 @@ func (h *GameSeverEventHandler) OnAdd(obj interface{}) error {
 	return nil
 }
 
-func (h *GameSeverEventHandler) OnUpdate(oldObj interface{}, newObj interface{}) error {
+func (h *GameSeverEventHandler) OnUpdate(_ interface{}, newObj interface{}) error {
 	h.logger.WithField("event", "updated").Infof("%s", newObj.(*agonesv1.GameServer).Name)
 
 	gs := gameserver.FromObject(newObj)

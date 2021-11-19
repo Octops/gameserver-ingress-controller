@@ -71,7 +71,7 @@ to quickly create a Cobra application.`,
 		})
 
 		logger.Info("starting gameserver controller")
-		ctrl, err := controller.NewGameServerController(mgr, handlers.NewGameSeverEventHandler(clientConf), controller.Options{
+		ctrl, err := controller.NewGameServerController(mgr, handlers.NewGameSeverEventHandler(clientConf, mgr.GetEventRecorderFor("gameserver-ingress-controller")), controller.Options{
 			For: &agonesv1.GameServer{},
 		})
 
@@ -100,7 +100,7 @@ func init() {
 
 	rootCmd.Flags().StringVar(&kubeconfig, "kubeconfig", "", "Set KUBECONFIG")
 	rootCmd.Flags().StringVar(&masterURL, "master", "", "The addr of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
-	rootCmd.Flags().StringVar(&syncPeriod, "sync-period", "5s", "Set the minimum frequency at which watched resources are reconciled")
+	rootCmd.Flags().StringVar(&syncPeriod, "sync-period", "15s", "Set the minimum frequency at which watched resources are reconciled")
 	rootCmd.Flags().IntVar(&port, "port", 30234, "Port used by the manager for webhooks")
 }
 

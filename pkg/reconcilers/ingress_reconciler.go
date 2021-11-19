@@ -3,7 +3,7 @@ package reconcilers
 import (
 	agonesv1 "agones.dev/agones/pkg/apis/agones/v1"
 	"context"
-	"github.com/Octops/gameserver-ingress-controller/internal/runtime"
+	. "github.com/Octops/gameserver-ingress-controller/internal/runtime"
 	"github.com/Octops/gameserver-ingress-controller/pkg/gameserver"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -11,19 +11,24 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/record"
 )
 
-var defaultPathType = networkingv1.PathTypePrefix
+var (
+	defaultPathType = networkingv1.PathTypePrefix
+)
 
 type IngressReconciler struct {
-	logger *logrus.Entry
-	Client *kubernetes.Clientset
+	logger   *logrus.Entry
+	recorder *EventRecorder
+	Client   *kubernetes.Clientset
 }
 
-func NewIngressReconciler(client *kubernetes.Clientset) *IngressReconciler {
+func NewIngressReconciler(client *kubernetes.Clientset, recorder record.EventRecorder) *IngressReconciler {
 	return &IngressReconciler{
-		logger: runtime.Logger().WithField("role", "ingress_reconciler"),
-		Client: client,
+		logger:   Logger().WithField("role", "ingress_reconciler"),
+		recorder: NewEventRecorder(recorder),
+		Client:   client,
 	}
 }
 
@@ -42,6 +47,8 @@ func (r *IngressReconciler) Reconcile(ctx context.Context, gs *agonesv1.GameServ
 }
 
 func (r *IngressReconciler) reconcileNotFound(ctx context.Context, gs *agonesv1.GameServer) (*networkingv1.Ingress, error) {
+	r.recorder.RecordCreating(gs, IngressKind)
+
 	mode := gameserver.GetIngressRoutingMode(gs)
 	issuer := gameserver.GetTLSCertIssuer(gs)
 
@@ -53,14 +60,17 @@ func (r *IngressReconciler) reconcileNotFound(ctx context.Context, gs *agonesv1.
 
 	ingress, err := newIngress(gs, opts...)
 	if err != nil {
+		r.recorder.RecordFailed(gs, IngressKind, err)
 		return nil, errors.Wrapf(err, "failed to create ingress for gameserver %s", gs.Name)
 	}
 
 	result, err := r.Client.NetworkingV1().Ingresses(gs.Namespace).Create(ctx, ingress, metav1.CreateOptions{})
 	if err != nil {
+		r.recorder.RecordFailed(gs, IngressKind, err)
 		return nil, errors.Wrapf(err, "failed to push ingress %s for gameserver %s", ingress.Name, gs.Name)
 	}
 
+	r.recorder.RecordSuccess(gs, IngressKind)
 	return result, nil
 }
 

@@ -12,17 +12,20 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/record"
 )
 
 type ServiceReconciler struct {
-	logger *logrus.Entry
-	Client *kubernetes.Clientset
+	logger   *logrus.Entry
+	recorder *EventRecorder
+	Client   *kubernetes.Clientset
 }
 
-func NewServiceReconciler(client *kubernetes.Clientset) *ServiceReconciler {
+func NewServiceReconciler(client *kubernetes.Clientset, recorder record.EventRecorder) *ServiceReconciler {
 	return &ServiceReconciler{
-		logger: runtime.Logger().WithField("role", "service_reconciler"),
-		Client: client,
+		logger:   runtime.Logger().WithField("role", "service_reconciler"),
+		recorder: NewEventRecorder(recorder),
+		Client:   client,
 	}
 }
 
@@ -41,8 +44,9 @@ func (r *ServiceReconciler) Reconcile(ctx context.Context, gs *agonesv1.GameServ
 }
 
 func (r *ServiceReconciler) reconcileNotFound(ctx context.Context, gs *agonesv1.GameServer) (*corev1.Service, error) {
-	ref := metav1.NewControllerRef(gs, agonesv1.SchemeGroupVersion.WithKind("GameServer"))
+	r.recorder.RecordCreating(gs, ServiceKind)
 
+	ref := metav1.NewControllerRef(gs, agonesv1.SchemeGroupVersion.WithKind("GameServer"))
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      gs.Name,
@@ -72,8 +76,10 @@ func (r *ServiceReconciler) reconcileNotFound(ctx context.Context, gs *agonesv1.
 	result, err := r.Client.CoreV1().Services(gs.Namespace).Create(ctx, service, metav1.CreateOptions{})
 	if err != nil {
 		r.logger.WithError(err).Errorf("failed to create service %s", service.Name)
+		r.recorder.RecordFailed(gs, ServiceKind, err)
 		return nil, errors.Wrap(err, "failed to create service")
 	}
 
+	r.recorder.RecordSuccess(gs, ServiceKind)
 	return result, nil
 }
