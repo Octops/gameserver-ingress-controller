@@ -44,7 +44,7 @@ func (r *ServiceReconciler) Reconcile(ctx context.Context, gs *agonesv1.GameServ
 }
 
 func (r *ServiceReconciler) reconcileNotFound(ctx context.Context, gs *agonesv1.GameServer) (*corev1.Service, error) {
-	r.recorder.RecordCreating(gs)
+	r.recorder.RecordCreating(gs, ServiceKind)
 
 	ref := metav1.NewControllerRef(gs, agonesv1.SchemeGroupVersion.WithKind("GameServer"))
 	service := &corev1.Service{
@@ -76,10 +76,10 @@ func (r *ServiceReconciler) reconcileNotFound(ctx context.Context, gs *agonesv1.
 	result, err := r.Client.CoreV1().Services(gs.Namespace).Create(ctx, service, metav1.CreateOptions{})
 	if err != nil {
 		r.logger.WithError(err).Errorf("failed to create service %s", service.Name)
-		r.recorder.RecordFailed(gs, err)
+		r.recorder.RecordFailed(gs, ServiceKind, err)
 		return nil, errors.Wrap(err, "failed to create service")
 	}
 
-	r.recorder.RecordSuccess(gs)
+	r.recorder.RecordSuccess(gs, ServiceKind)
 	return result, nil
 }

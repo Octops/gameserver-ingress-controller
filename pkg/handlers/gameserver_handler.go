@@ -30,7 +30,7 @@ func NewGameSeverEventHandler(config *rest.Config, recorder record.EventRecorder
 	return &GameSeverEventHandler{
 		logger:            runtime.Logger().WithField("role", "event_handler"),
 		client:            client,
-		serviceReconciler: reconcilers.NewServiceReconciler(client),
+		serviceReconciler: reconcilers.NewServiceReconciler(client, recorder),
 		ingressReconciler: reconcilers.NewIngressReconciler(client, recorder),
 	}
 }
