@@ -66,10 +66,10 @@ spec:
     spec:
       serviceAccountName: octops
       containers:
-        - image: octops/gameserver-ingress-controller:0.1.1
+        - image: octops/gameserver-ingress-controller:0.1.2
           name: controller
           args:
-            - --sync-period=5s
+            - --sync-period=15s
           imagePullPolicy: Always
           resources:
             requests:
