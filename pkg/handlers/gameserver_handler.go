@@ -46,7 +46,7 @@ func (h *GameSeverEventHandler) OnAdd(obj interface{}) error {
 	return nil
 }
 
-func (h *GameSeverEventHandler) OnUpdate(oldObj interface{}, newObj interface{}) error {
+func (h *GameSeverEventHandler) OnUpdate(_ interface{}, newObj interface{}) error {
 	h.logger.WithField("event", "updated").Infof("%s", newObj.(*agonesv1.GameServer).Name)
 
 	gs := gameserver.FromObject(newObj)
