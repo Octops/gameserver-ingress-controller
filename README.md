@@ -207,6 +207,40 @@ Check logs:
 $ kubectl -n octops-system logs -f $(kubectl -n octops-system get pod -l app=octops-ingress-controller -o=jsonpath='{.items[*].metadata.name}')
 ```
 
+## Events
+You can track events recorded for each GameServer running `kubectl get events [-w]` and the output will look similar to:
+```
+...
+1s Normal  Creating  gameserver/octops-domain-tqmvm-rcl5p  Creating Service for gameserver default/octops-domain-tqmvm-rcl5p
+0s Normal  Created   gameserver/octops-domain-tqmvm-rcl5p  Service created for gameserver default/octops-domain-tqmvm-rcl5p
+0s Normal  Creating  gameserver/octops-domain-tqmvm-rcl5p  Creating Ingress for gameserver default/octops-domain-tqmvm-rcl5p
+0s Normal  Created   gameserver/octops-domain-tqmvm-rcl5p  Ingress created for gameserver default/octops-domain-tqmvm-rcl5p
+...
+```
+
+The controller will record errors if a resource can be created.
+```
+0s Warning Failed  gameserver/octops-domain-zxt2q-6xl6r  Failed to create Ingress for gameserver default/octops-domain-zxt2q-6xl6r: ingress routing mode domain requires the annotation octops.io/gameserver-ingress-domain to be present on octops-domain-zxt2q-6xl6r, check your Fleet or GameServer manifest.
+```
+
+Alternatively, you can check events for a particular gameserver running
+```
+$ kubectl describe gameserver [gameserver-name]
+...
+Events:
+  Type    Reason          Age    From                           Message
+  ----    ------          ----   ----                           -------
+  Normal  PortAllocation  2m59s  gameserver-controller          Port allocated
+  Normal  Creating        2m59s  gameserver-controller          Pod octops-domain-4sk5v-7gtw4 created
+  Normal  Scheduled       2m59s  gameserver-controller          Address and port populated
+  Normal  RequestReady    2m53s  gameserver-sidecar             SDK state change
+  Normal  Ready           2m53s  gameserver-controller          SDK.Ready() complete
+  Normal  Creating        2m53s  gameserver-ingress-controller  Creating Service for gameserver default/octops-domain-4sk5v-7gtw4
+  Normal  Created         2m53s  gameserver-ingress-controller  Service created for gameserver default/octops-domain-4sk5v-7gtw4
+  Normal  Creating        2m53s  gameserver-ingress-controller  Creating Ingress for gameserver default/octops-domain-4sk5v-7gtw4
+  Normal  Created         2m53s  gameserver-ingress-controller  Ingress created for gameserver default/octops-domain-4sk5v-7gtw4
+```
+
 ## Extras
 
 You can find examples of different issuers on the [deploy/cert-manager](deploy/cert-manager) folder. Make sure you update the information to reflect your environment before applying those manifests.
