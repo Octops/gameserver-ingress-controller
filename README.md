@@ -17,11 +17,11 @@ This configuration is used by the controller when creating the ingress resource 
 Routing Mode is a Fleet or GameServer scoped configuration. A Fleet defines the routing mode to all of its GameServers. For stand-alone GameServers, the routing mode is defined on its own manifest.
 
 ### Domain
-Every gameserver gets its own [FQDN](https://en.wikipedia.org/wiki/Fully_qualified_domain_name#Example). I.e.:`https://octops-2dnqv-jmqgp.mygame.com` or `https://octops-g6qkw-gnp2h.mygame.com`
+Every gameserver gets its own [FQDN](https://en.wikipedia.org/wiki/Fully_qualified_domain_name#Example). I.e.:`https://octops-2dnqv-jmqgp.example.com` or `https://octops-g6qkw-gnp2h.example.com`
 
 ```yaml
 # simplified Fleet manifest for Domain mode
-# each GameServer is accessible using the combination: [gameserver_name].mygame.com
+# each GameServer is accessible using the combination: [gameserver_name].example.com
 apiVersion: "agones.dev/v1"
 kind: Fleet
 metadata:
@@ -32,17 +32,17 @@ spec:
     metadata:
       annotations:
         octops.io/gameserver-ingress-mode: "domain"
-        octops.io/gameserver-ingress-domain: "mygame.com"
+        octops.io/gameserver-ingress-domain: "example.com"
 ```
 
 Check the [examples](examples) folder for a full Fleet manifest that uses the `Domain` routing mode.
 
 ### Path
-There is one global domain and gameservers are available using the URL path. I.e.: `https://servers.mygame.com/octops-2dnqv-jmqgp` or `https://servers.mygame.com/octops-g6qkw-gnp2h`
+There is one global domain and gameservers are available using the URL path. I.e.: `https://servers.example.com/octops-2dnqv-jmqgp` or `https://servers.example.com/octops-g6qkw-gnp2h`
 
 ```yaml
 # simplified Fleet manifest for Path mode
-# each GameServer is accessible using the combination: servers.mygame.com/[gameserver_name]
+# each GameServer is accessible using the combination: servers.example.com/[gameserver_name]
 apiVersion: "agones.dev/v1"
 kind: Fleet
 metadata:
@@ -53,7 +53,7 @@ spec:
     metadata:
       annotations:
         octops.io/gameserver-ingress-mode: "path"
-        octops.io/gameserver-ingress-fqdn: servers.mygame.com
+        octops.io/gameserver-ingress-fqdn: servers.example.com
 ```
 
 Check the [examples](examples) folder for a full Fleet manifest that uses the `Path` routing mode.
@@ -68,7 +68,7 @@ When a gameserver is created by Agones, either as part of a Fleet or a stand-alo
 
 It will use the information present in the gameserver annotations and metadata to create the required Ingress and dependencies.
 
-Below is an example of a Fleet manifest that deploys a Fleet using the `Domain` routing mode:
+Below is an example of a manifest that deploys a Fleet using the `Domain` routing mode:
 ```yaml
 # Reference: https://agones.dev/site/docs/reference/fleet/
 apiVersion: "agones.dev/v1"
@@ -88,7 +88,7 @@ spec:
       annotations:
         # Required annotation used by the controller
         octops.io/gameserver-ingress-mode: "domain"
-        octops.io/gameserver-ingress-domain: "mygame.com"
+        octops.io/gameserver-ingress-domain: "example.com"
         octops.io/terminate-tls: "true"
         octops.io/issuer-tls-name: "letsencrypt-prod"
 # The rest of your fleet spec stays the same        
@@ -106,28 +106,28 @@ octops-2dnqv-fr8tx   Ready   212.76.142.33   7779   node-2   10m
 Ingresses created by the controller:
 ```bash
 NAME                 HOSTS                           ADDRESS         PORTS     AGE
-octops-2dnqv-jmqgp   octops-2dnqv-jmqgp.mygame.com                   80, 443   4m48s
-octops-2dnqv-d9nxd   octops-2dnqv-d9nxd.mygame.com                   80, 443   4m46s
-octops-2dnqv-fr8tx   octops-2dnqv-fr8tx.mygame.com                   80, 443   4m45s
+octops-2dnqv-jmqgp   octops-2dnqv-jmqgp.example.com                   80, 443   4m48s
+octops-2dnqv-d9nxd   octops-2dnqv-d9nxd.example.com                   80, 443   4m46s
+octops-2dnqv-fr8tx   octops-2dnqv-fr8tx.example.com                   80, 443   4m45s
 ```
 
 List of Ingresses and Backends
 ```bash
 
-https://octops-2dnqv-jmqgp.mygame.com/ ⇢ octops-2dnqv-jmqgp:7437
-https://octops-2dnqv-d9nxd.mygame.com/ ⇢ octops-2dnqv-d9nxd:7323
-https://octops-2dnqv-fr8tx.mygame.com/ ⇢ octops-2dnqv-fr8tx:7779
+https://octops-2dnqv-jmqgp.example.com/ ⇢ octops-2dnqv-jmqgp:7437
+https://octops-2dnqv-d9nxd.example.com/ ⇢ octops-2dnqv-d9nxd:7323
+https://octops-2dnqv-fr8tx.example.com/ ⇢ octops-2dnqv-fr8tx:7779
 ```
 
 ## Conventions
 The table below shows how the information from the gameserver is used to compose the ingress settings.
 
-| Gameserver                          | Ingress       |
+| Gameserver                          | Ingress       | 
 | ----------------------------------- |:-------------:|
-| name                                | hostname      |
+| name                                | [hostname, path] | 
 | annotation: octops.io/gameserver-ingress-mode | [domain, path] |
 | annotation: octops.io/gameserver-ingress-domain | base domain |
-|octops.io/gameserver-ingress-fqdn | global domain|
+|octops.io/gameserver-ingress-fqdn | global domain| 
 |annotation: octops.io/terminate-tls | terminate TLS |
 |annotation: octops.io/issuer-tls-name| name of the issuer |
 
@@ -153,12 +153,20 @@ The following components must be present on the Kubernetes cluster where the ded
   - Install: ```$ kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.1.0/cert-manager.yaml```
   
 ## Fleet and GameServer Manifests
+
+- **octops.io/gameserver-ingress-mode:** defines the ingress routing mode, possible values are: domain or path.
+- **octops.io/gameserver-ingress-domain:** name of the domain to be used when creating the ingress. This is the public domain that players will use to reach out to the dedicated game server.
+- **octops.io/gameserver-ingress-fqdn:** full domain name where gameservers will be accessed based on the URL path.
+- **octops.io/terminate-tls:** it determines if the ingress will terminate TLS. If set to "false" it means that TLS will be terminated at the loadbalancer. In this case there won't be a certificated issued by the local cert-manager.
+- **octops.io/issuer-tls-name:** required if `terminate-tls=true`. This is the name of the issuer that cert-manager will use when creating the certificate for the ingress.
+
+
 The same configuration works for Fleets and GameServers. Add the following annotations to your manifest:
 ```yaml
 # Fleet annotations using ingress routing mode: domain
 annotations:
   octops.io/gameserver-ingress-mode: "domain"
-  octops.io/gameserver-ingress-domain: "mygame.com"
+  octops.io/gameserver-ingress-domain: "example.com"
   octops.io/terminate-tls: "true"
   octops.io/issuer-tls-name: "selfsigned-issuer"
 ```
@@ -167,7 +175,7 @@ annotations:
 # Fleet annotations using ingress routing mode: path
 annotations:
   octops.io/gameserver-ingress-mode: "path"
-  octops.io/gameserver-ingress-fqdn: "servers.mygame.com"
+  octops.io/gameserver-ingress-fqdn: "servers.example.com"
   octops.io/terminate-tls: "true"
   octops.io/issuer-tls-name: "selfsigned-issuer"
 ```
@@ -177,12 +185,6 @@ annotations:
 octops.io/terminate-tls: "true"
 octops.io/issuer-tls-name: "selfsigned-issuer"
 ```
-
-- **octops.io/gameserver-ingress-mode:** defines the ingress routing mode, possible values are: domain or path.
-- **octops.io/gameserver-ingress-domain:** name of the domain to be used when creating the ingress. This is the public domain that players will use to reach out to the dedicated game server.
-- **octops.io/gameserver-ingress-fqdn:** full domain name where gameservers will be accessed based on the URL path.
-- **octops.io/terminate-tls:** it determines if the ingress will terminate TLS. If set to "false" it means that TLS will be terminated at the loadbalancer. In this case there won't be a certificated issued by the local cert-manager.
-- **octops.io/issuer-tls-name:** required if `terminate-tls=true`. This is the name of the issuer that cert-manager will use when creating the certificate for the ingress.
 
 ## Deploy the Gameserver Ingress Controller
 
@@ -216,15 +218,43 @@ $ kubectl apply -f examples/fleet-domain.yaml
 # Find the ingress for one of the replicas
 $ kubectl get ingress
 NAME                 HOSTS                           ADDRESS         PORTS     AGE
-octops-tl6hf-fnmgd   octops-tl6hf-fnmgd.mygame.com                   80, 443   67m
-octops-tl6hf-jjqvt   octops-tl6hf-jjqvt.mygame.com                   80, 443   67m
-octops-tl6hf-qzhzb   octops-tl6hf-qzhzb.mygame.com                   80, 443   67m
+octops-tl6hf-fnmgd   octops-tl6hf-fnmgd.example.com                   80, 443   67m
+octops-tl6hf-jjqvt   octops-tl6hf-jjqvt.example.com                   80, 443   67m
+octops-tl6hf-qzhzb   octops-tl6hf-qzhzb.example.com                   80, 443   67m
 
 # Test the public endpoint. You will need a valid public domain or some network sorcery depending on the environment you pushed the manifest.
-$ curl https://octops-tl6hf-fnmgd.mygame.com
+$ curl https://octops-tl6hf-fnmgd.example.com
 
 # Output
 {"Name":"octops-tl6hf-fnmgd","Address":"36.23.134.23:7318","Status":{"state":"Ready","address":"192.168.0.117","ports":[{"name":"default","port":7318}]}}
+```
+
+### Ingress manifest
+Below is an example of a manifest created by the controller for a GameServer from a Fleet set to routing mode `domain`:
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  labels:
+    agones.dev/gameserver: octops-tl6hf-fnmgd
+  name: octops-tl6hf-fnmgd
+  namespace: default
+spec:
+  rules:
+    - host: octops-tl6hf-fnmgd.example.com
+      http:
+        paths:
+          - backend:
+              service:
+                name: octops-tl6hf-fnmgd #service is also created but the controller
+                port:
+                  number: 7837
+            path: /
+            pathType: Prefix
+  tls:
+    - hosts:
+        - octops-tl6hf-fnmgd.example.com
+      secretName: octops-tl6hf-fnmgd-tls
 ```
 
 # Demo
