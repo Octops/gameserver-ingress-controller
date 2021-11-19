@@ -28,7 +28,7 @@ spec:
         region: us-east-1
       annotations:
         octops.io/gameserver-ingress-mode: "domain"
-        octops.io/gameserver-ingress-domain: "mygame.com"
+        octops.io/gameserver-ingress-domain: "example.com"
         octops.io/terminate-tls: "true"
         octops.io/issuer-tls-name: "selfsigned-issuer"
     spec:

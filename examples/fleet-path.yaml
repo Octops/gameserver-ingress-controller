@@ -28,7 +28,7 @@ spec:
         region: us-east-1
       annotations:
         octops.io/gameserver-ingress-mode: "path"
-        octops.io/gameserver-ingress-fqdn: "servers.mygame.com"
+        octops.io/gameserver-ingress-fqdn: "servers.example.com"
         #octops.io/terminate-tls: "true"
         #octops.io/issuer-tls-name: "selfsigned-issuer"
     spec:
