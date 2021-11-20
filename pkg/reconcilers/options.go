@@ -16,8 +16,8 @@ func WithCustomAnnotations() IngressOption {
 	return func(gs *agonesv1.GameServer, ingress *networkingv1.Ingress) error {
 		annotations := ingress.Annotations
 		for k, v := range gs.Annotations {
-			if strings.HasPrefix(k, gameserver.OctopsAnnotationCustomIngress) {
-				custom := strings.Replace(k, gameserver.OctopsAnnotationCustomIngress, "", -1)
+			if strings.HasPrefix(k, gameserver.OctopsAnnotationCustomPrefix) {
+				custom := strings.TrimPrefix(k, gameserver.OctopsAnnotationCustomPrefix)
 				annotations[custom] = v
 			}
 		}

@@ -34,11 +34,11 @@ func Test_NewIngress_DomainRoutingMode(t *testing.T) {
 			customAnnotationValue := "my_custom_annotation_value"
 
 			gs := newGameServer(map[string]string{
-				gameserver.OctopsAnnotationIngressMode:                      string(gameserver.IngressRoutingModeDomain),
-				gameserver.OctopsAnnotationIngressDomain:                    domain,
-				gameserver.OctopsAnnotationTerminateTLS:                     strconv.FormatBool(tc.terminateTLS),
-				gameserver.OctopsAnnotationIssuerName:                       tc.certTLSIssuer,
-				gameserver.OctopsAnnotationCustomIngress + customAnnotation: customAnnotationValue,
+				gameserver.OctopsAnnotationIngressMode:                     string(gameserver.IngressRoutingModeDomain),
+				gameserver.OctopsAnnotationIngressDomain:                   domain,
+				gameserver.OctopsAnnotationTerminateTLS:                    strconv.FormatBool(tc.terminateTLS),
+				gameserver.OctopsAnnotationIssuerName:                      tc.certTLSIssuer,
+				gameserver.OctopsAnnotationCustomPrefix + customAnnotation: customAnnotationValue,
 			})
 
 			mode := gameserver.GetIngressRoutingMode(gs)
@@ -103,11 +103,11 @@ func Test_NewIngress_PathRoutingMode(t *testing.T) {
 			customAnnotationValue := "my_custom_annotation_value"
 
 			gs := newGameServer(map[string]string{
-				gameserver.OctopsAnnotationIngressFQDN:                      fqdn,
-				gameserver.OctopsAnnotationIngressMode:                      string(gameserver.IngressRoutingModePath),
-				gameserver.OctopsAnnotationTerminateTLS:                     strconv.FormatBool(tc.terminateTLS),
-				gameserver.OctopsAnnotationIssuerName:                       tc.certTLSIssuer,
-				gameserver.OctopsAnnotationCustomIngress + customAnnotation: customAnnotationValue,
+				gameserver.OctopsAnnotationIngressFQDN:                     fqdn,
+				gameserver.OctopsAnnotationIngressMode:                     string(gameserver.IngressRoutingModePath),
+				gameserver.OctopsAnnotationTerminateTLS:                    strconv.FormatBool(tc.terminateTLS),
+				gameserver.OctopsAnnotationIssuerName:                      tc.certTLSIssuer,
+				gameserver.OctopsAnnotationCustomPrefix + customAnnotation: customAnnotationValue,
 			})
 
 			mode := gameserver.GetIngressRoutingMode(gs)

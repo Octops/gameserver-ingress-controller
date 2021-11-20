@@ -15,7 +15,7 @@ const (
 	OctopsAnnotationIngressFQDN   = "octops.io/gameserver-ingress-fqdn"
 	OctopsAnnotationTerminateTLS  = "octops.io/terminate-tls"
 	OctopsAnnotationIssuerName    = "octops.io/issuer-tls-name"
-	OctopsAnnotationCustomIngress = "octops.io/ingress-annotation-"
+	OctopsAnnotationCustomPrefix  = "octops-"
 
 	CertManagerAnnotationIssuer = "cert-manager.io/issuer"
 	AgonesGameServerNameLabel   = "agones.dev/gameserver"

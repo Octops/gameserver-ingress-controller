@@ -45,6 +45,7 @@ func (r *IngressReconciler) reconcileNotFound(ctx context.Context, gs *agonesv1.
 	issuer := gameserver.GetTLSCertIssuer(gs)
 
 	opts := []IngressOption{
+		WithCustomAnnotations(),
 		WithIngressRule(mode),
 		WithTLS(mode),
 		WithTLSCertIssuer(issuer),

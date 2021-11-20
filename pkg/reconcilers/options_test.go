@@ -1,11 +1,17 @@
 package reconcilers
 
 import (
+	"fmt"
+	"github.com/Octops/gameserver-ingress-controller/pkg/gameserver"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
 
 func Test_WithCustomAnnotations(t *testing.T) {
+	newCustomAnnotation := func(custom string) string {
+		return fmt.Sprintf("%s%s", gameserver.OctopsAnnotationCustomPrefix, custom)
+	}
+
 	testCases := []struct {
 		name        string
 		annotations map[string]string
@@ -17,7 +23,7 @@ func Test_WithCustomAnnotations(t *testing.T) {
 		{
 			name: "with single custom annotation",
 			annotations: map[string]string{
-				"octops.io/ingress-annotation-my-annotation": "my_custom_annotation_value",
+				newCustomAnnotation("my-annotation"): "my_custom_annotation_value",
 			},
 			expected: map[string]string{
 				"my-annotation": "my_custom_annotation_value",
@@ -27,8 +33,8 @@ func Test_WithCustomAnnotations(t *testing.T) {
 		{
 			name: "with two custom annotations",
 			annotations: map[string]string{
-				"octops.io/ingress-annotation-my-annotation-one": "my_custom_annotation_value_one",
-				"octops.io/ingress-annotation-my-annotation-two": "my_custom_annotation_value_two",
+				newCustomAnnotation("my-annotation-one"): "my_custom_annotation_value_one",
+				newCustomAnnotation("my-annotation-two"): "my_custom_annotation_value_two",
 			},
 			expected: map[string]string{
 				"my-annotation-one": "my_custom_annotation_value_one",
@@ -39,14 +45,24 @@ func Test_WithCustomAnnotations(t *testing.T) {
 		{
 			name: "return only one custom annotation",
 			annotations: map[string]string{
-				"octops.io/ingress-annotation-my-annotation-one": "my_custom_annotation_value_one",
-				"octops.io/another-annotation":                   "another_annotation_value",
+				newCustomAnnotation("my-annotation-one"): "my_custom_annotation_value_one",
+				"octops.io/another-annotation":           "another_annotation_value",
 			},
 			expected: map[string]string{
 				"my-annotation-one": "my_custom_annotation_value_one",
 			},
 			notExpected: map[string]string{
 				"octops.io/another-annotation": "another_annotation_value",
+			},
+			wantErr: false,
+		},
+		{
+			name: "with complex annotations",
+			annotations: map[string]string{
+				newCustomAnnotation("nginx.ingress.kubernetes.io/proxy-read-timeout"): "10",
+			},
+			expected: map[string]string{
+				"nginx.ingress.kubernetes.io/proxy-read-timeout": "10",
 			},
 			wantErr: false,
 		},
