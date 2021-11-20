@@ -127,9 +127,45 @@ The table below shows how the information from the gameserver is used to compose
 | name                                | [hostname, path] | 
 | annotation: octops.io/gameserver-ingress-mode | [domain, path] |
 | annotation: octops.io/gameserver-ingress-domain | base domain |
-|octops.io/gameserver-ingress-fqdn | global domain| 
+|annotation: octops.io/gameserver-ingress-fqdn | global domain| 
 |annotation: octops.io/terminate-tls | terminate TLS |
 |annotation: octops.io/issuer-tls-name| name of the issuer |
+|annotation: octops-[custom-annotation] | custom-annotation |
+
+### Custom Annotations
+Any Fleet or GameServer annotation that contains the prefix `octops-` will be added down to the Ingress resourced crated by the controller.
+
+`octops-nginx.ingress.kubernetes.io/proxy-read-timeout ` :`10`
+
+Will be added to the ingress in the following format:
+
+`nginx.ingress.kubernetes.io/proxy-read-timeout `:`10`
+
+**Any annotation can be used and it is not restricted to NGINX controller annotations**
+
+`octops-my-custom-annotations`: `my-custom-value` will be passed to the Ingress resource as:
+
+`my-custom-annotations`: `my-custom-value`
+
+Multiline is also supported
+
+```yaml
+annotations:
+    octops-nginx.ingress.kubernetes.io/server-snippet: |
+          set $agentflag 0;
+
+          if ($http_user_agent ~* "(Mobile)" ){
+            set $agentflag 1;
+          }
+
+          if ( $agentflag = 1 ) {
+            return 301 https://m.example.com;
+          }
+```
+
+**Remember that the max length of a label name is 63 characters. That limit is imposed by Kubernetes**
+
+https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
 
 ## Clean up and Gameserver Lifecycle
 Every resource created by the gameserver ingress controller is attached to the gameserver itself. That means, when a gameserver is deleted from the cluster all its dependencies will be cleaned up by the Kubernetes garbage collector.
