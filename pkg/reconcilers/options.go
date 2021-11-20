@@ -112,10 +112,7 @@ func WithTLSCertIssuer(issuerName string) IngressOption {
 			return errors.Errorf("annotation %s for %s must be present, check your Fleet or GameServer manifest.", gameserver.OctopsAnnotationIssuerName, gs.Name)
 		}
 
-		ingress.Annotations = map[string]string{
-			gameserver.CertManagerAnnotationIssuer: issuerName,
-		}
-
+		ingress.Annotations[gameserver.CertManagerAnnotationIssuer] = issuerName
 		return nil
 	}
 }
