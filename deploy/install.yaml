@@ -19,6 +19,9 @@ metadata:
   labels:
     app: octops
 rules:
+  - apiGroups: [ "" ]
+    resources: [ "events" ]
+    verbs: [ "create" ]
   - apiGroups: [""]
     resources: ["pods"]
     verbs: ["list", "get", "watch"]
