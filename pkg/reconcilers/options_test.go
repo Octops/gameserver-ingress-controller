@@ -17,8 +17,6 @@ func Test_WithCustomAnnotations(t *testing.T) {
 		annotations map[string]string
 		expected    map[string]string
 		notExpected map[string]string
-		wantErr     bool
-		err         error
 	}{
 		{
 			name: "with single custom annotation",
@@ -28,7 +26,6 @@ func Test_WithCustomAnnotations(t *testing.T) {
 			expected: map[string]string{
 				"my-annotation": "my_custom_annotation_value",
 			},
-			wantErr: false,
 		},
 		{
 			name: "with two custom annotations",
@@ -40,7 +37,6 @@ func Test_WithCustomAnnotations(t *testing.T) {
 				"my-annotation-one": "my_custom_annotation_value_one",
 				"my-annotation-two": "my_custom_annotation_value_two",
 			},
-			wantErr: false,
 		},
 		{
 			name: "return only one custom annotation",
@@ -54,7 +50,6 @@ func Test_WithCustomAnnotations(t *testing.T) {
 			notExpected: map[string]string{
 				"octops.io/another-annotation": "another_annotation_value",
 			},
-			wantErr: false,
 		},
 		{
 			name: "with complex annotations",
@@ -64,7 +59,33 @@ func Test_WithCustomAnnotations(t *testing.T) {
 			expected: map[string]string{
 				"nginx.ingress.kubernetes.io/proxy-read-timeout": "10",
 			},
-			wantErr: false,
+		},
+		{
+			name: "with multiline annotation",
+			annotations: map[string]string{
+				newCustomAnnotation("nginx.ingress.kubernetes.io/server-snippet"): `|
+        set $agentflag 0;
+
+        if ($http_user_agent ~* "(Mobile)" ){
+          set $agentflag 1;
+        }
+
+        if ( $agentflag = 1 ) {
+          return 301 https://m.example.com;
+        }`,
+			},
+			expected: map[string]string{
+				"nginx.ingress.kubernetes.io/server-snippet": `|
+        set $agentflag 0;
+
+        if ($http_user_agent ~* "(Mobile)" ){
+          set $agentflag 1;
+        }
+
+        if ( $agentflag = 1 ) {
+          return 301 https://m.example.com;
+        }`,
+			},
 		},
 	}
 
