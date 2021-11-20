@@ -65,10 +65,6 @@ func (h *GameSeverEventHandler) OnDelete(obj interface{}) error {
 	return nil
 }
 
-func (h GameSeverEventHandler) Client() *kubernetes.Clientset {
-	return h.client
-}
-
 func (h *GameSeverEventHandler) Reconcile(gs *agonesv1.GameServer) error {
 	if _, ok := gameserver.HasAnnotation(gs, gameserver.OctopsAnnotationIngressMode); !ok {
 		h.logger.Debugf("skipping gameserver %s/%s, annotation %s not present", gs.Namespace, gs.Name, gameserver.OctopsAnnotationIngressMode)
@@ -85,12 +81,12 @@ func (h *GameSeverEventHandler) Reconcile(gs *agonesv1.GameServer) error {
 	ctx := context.TODO()
 	_, err := h.serviceReconciler.Reconcile(ctx, gs)
 	if err != nil {
-		return errors.Wrap(err, "failed to reconcile gameserver/service")
+		return errors.Wrapf(err, "failed to reconcile service %s/%s", gs.Namespace, gs.Name)
 	}
 
 	_, err = h.ingressReconciler.Reconcile(ctx, gs)
 	if err != nil {
-		return errors.Wrap(err, "failed to reconcile ingress")
+		return errors.Wrapf(err, "failed to reconcile ingress %s/%s", gs.Namespace, gs.Name)
 	}
 
 	return nil

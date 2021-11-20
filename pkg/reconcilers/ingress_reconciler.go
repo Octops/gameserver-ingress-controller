@@ -3,10 +3,8 @@ package reconcilers
 import (
 	agonesv1 "agones.dev/agones/pkg/apis/agones/v1"
 	"context"
-	. "github.com/Octops/gameserver-ingress-controller/internal/runtime"
 	"github.com/Octops/gameserver-ingress-controller/pkg/gameserver"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	networkingv1 "k8s.io/api/networking/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,19 +12,13 @@ import (
 	"k8s.io/client-go/tools/record"
 )
 
-var (
-	defaultPathType = networkingv1.PathTypePrefix
-)
-
 type IngressReconciler struct {
-	logger   *logrus.Entry
 	recorder *EventRecorder
 	Client   *kubernetes.Clientset
 }
 
 func NewIngressReconciler(client *kubernetes.Clientset, recorder record.EventRecorder) *IngressReconciler {
 	return &IngressReconciler{
-		logger:   Logger().WithField("role", "ingress_reconciler"),
 		recorder: NewEventRecorder(recorder),
 		Client:   client,
 	}
