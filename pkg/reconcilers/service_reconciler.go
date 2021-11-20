@@ -3,10 +3,8 @@ package reconcilers
 import (
 	agonesv1 "agones.dev/agones/pkg/apis/agones/v1"
 	"context"
-	"github.com/Octops/gameserver-ingress-controller/internal/runtime"
 	"github.com/Octops/gameserver-ingress-controller/pkg/gameserver"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,14 +14,12 @@ import (
 )
 
 type ServiceReconciler struct {
-	logger   *logrus.Entry
 	recorder *EventRecorder
 	Client   *kubernetes.Clientset
 }
 
 func NewServiceReconciler(client *kubernetes.Clientset, recorder record.EventRecorder) *ServiceReconciler {
 	return &ServiceReconciler{
-		logger:   runtime.Logger().WithField("role", "service_reconciler"),
 		recorder: NewEventRecorder(recorder),
 		Client:   client,
 	}
@@ -75,7 +71,6 @@ func (r *ServiceReconciler) reconcileNotFound(ctx context.Context, gs *agonesv1.
 
 	result, err := r.Client.CoreV1().Services(gs.Namespace).Create(ctx, service, metav1.CreateOptions{})
 	if err != nil {
-		r.logger.WithError(err).Errorf("failed to create service %s", service.Name)
 		r.recorder.RecordFailed(gs, ServiceKind, err)
 		return nil, errors.Wrap(err, "failed to create service")
 	}

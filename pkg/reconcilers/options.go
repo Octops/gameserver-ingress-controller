@@ -12,6 +12,24 @@ import (
 
 type IngressOption func(gs *agonesv1.GameServer, ingress *networkingv1.Ingress) error
 
+func WithCustomAnnotations() IngressOption {
+	return func(gs *agonesv1.GameServer, ingress *networkingv1.Ingress) error {
+		annotations := ingress.Annotations
+		for k, v := range gs.Annotations {
+			if strings.HasPrefix(k, gameserver.OctopsAnnotationCustomPrefix) {
+				custom := strings.TrimPrefix(k, gameserver.OctopsAnnotationCustomPrefix)
+				if len(custom) == 0 {
+					return errors.New("custom annotation does not contain a suffix")
+				}
+				annotations[custom] = v
+			}
+		}
+
+		ingress.SetAnnotations(annotations)
+		return nil
+	}
+}
+
 func WithTLS(mode gameserver.IngressRoutingMode) IngressOption {
 	return func(gs *agonesv1.GameServer, ingress *networkingv1.Ingress) error {
 		errMsgInvalidAnnotation := func(mode, annotation string) error {
@@ -112,10 +130,7 @@ func WithTLSCertIssuer(issuerName string) IngressOption {
 			return errors.Errorf("annotation %s for %s must be present, check your Fleet or GameServer manifest.", gameserver.OctopsAnnotationIssuerName, gs.Name)
 		}
 
-		ingress.Annotations = map[string]string{
-			gameserver.CertManagerAnnotationIssuer: issuerName,
-		}
-
+		ingress.Annotations[gameserver.CertManagerAnnotationIssuer] = issuerName
 		return nil
 	}
 }

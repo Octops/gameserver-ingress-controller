@@ -30,11 +30,15 @@ func Test_NewIngress_DomainRoutingMode(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			domain := "foo.bar"
+			customAnnotation := "my_custom_annotation"
+			customAnnotationValue := "my_custom_annotation_value"
+
 			gs := newGameServer(map[string]string{
-				gameserver.OctopsAnnotationIngressMode:   string(gameserver.IngressRoutingModeDomain),
-				gameserver.OctopsAnnotationIngressDomain: domain,
-				gameserver.OctopsAnnotationTerminateTLS:  strconv.FormatBool(tc.terminateTLS),
-				gameserver.OctopsAnnotationIssuerName:    tc.certTLSIssuer,
+				gameserver.OctopsAnnotationIngressMode:                     string(gameserver.IngressRoutingModeDomain),
+				gameserver.OctopsAnnotationIngressDomain:                   domain,
+				gameserver.OctopsAnnotationTerminateTLS:                    strconv.FormatBool(tc.terminateTLS),
+				gameserver.OctopsAnnotationIssuerName:                      tc.certTLSIssuer,
+				gameserver.OctopsAnnotationCustomPrefix + customAnnotation: customAnnotationValue,
 			})
 
 			mode := gameserver.GetIngressRoutingMode(gs)
@@ -45,6 +49,7 @@ func Test_NewIngress_DomainRoutingMode(t *testing.T) {
 			rules := newIngressRule(host, "/", gs.Name, gameserver.GetGameServerPort(gs).Port)
 
 			opts := []IngressOption{
+				WithCustomAnnotations(),
 				WithIngressRule(mode),
 				WithTLS(mode),
 				WithTLSCertIssuer(issuerName),
@@ -56,6 +61,8 @@ func Test_NewIngress_DomainRoutingMode(t *testing.T) {
 			require.Equal(t, gameserver.GetGameServerPort(gs).Port, ig.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number)
 			require.Contains(t, ig.Labels, gameserver.AgonesGameServerNameLabel)
 			require.Equal(t, ig.Labels[gameserver.AgonesGameServerNameLabel], gs.Name)
+			require.Contains(t, ig.Annotations, customAnnotation)
+			require.Equal(t, ig.Annotations[customAnnotation], customAnnotationValue)
 			require.Equal(t, []metav1.OwnerReference{*ref}, ig.OwnerReferences)
 			require.Equal(t, tls, ig.Spec.TLS)
 			require.Equal(t, rules, ig.Spec.Rules)
@@ -92,11 +99,15 @@ func Test_NewIngress_PathRoutingMode(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			fqdn := "servers.foo.bar"
+			customAnnotation := "my_custom_annotation"
+			customAnnotationValue := "my_custom_annotation_value"
+
 			gs := newGameServer(map[string]string{
-				gameserver.OctopsAnnotationIngressFQDN:  fqdn,
-				gameserver.OctopsAnnotationIngressMode:  string(gameserver.IngressRoutingModePath),
-				gameserver.OctopsAnnotationTerminateTLS: strconv.FormatBool(tc.terminateTLS),
-				gameserver.OctopsAnnotationIssuerName:   tc.certTLSIssuer,
+				gameserver.OctopsAnnotationIngressFQDN:                     fqdn,
+				gameserver.OctopsAnnotationIngressMode:                     string(gameserver.IngressRoutingModePath),
+				gameserver.OctopsAnnotationTerminateTLS:                    strconv.FormatBool(tc.terminateTLS),
+				gameserver.OctopsAnnotationIssuerName:                      tc.certTLSIssuer,
+				gameserver.OctopsAnnotationCustomPrefix + customAnnotation: customAnnotationValue,
 			})
 
 			mode := gameserver.GetIngressRoutingMode(gs)
@@ -107,6 +118,7 @@ func Test_NewIngress_PathRoutingMode(t *testing.T) {
 			rules := newIngressRule(gs.Annotations[gameserver.OctopsAnnotationIngressFQDN], "/"+gs.Name, gs.Name, gameserver.GetGameServerPort(gs).Port)
 
 			opts := []IngressOption{
+				WithCustomAnnotations(),
 				WithIngressRule(mode),
 				WithTLS(mode),
 				WithTLSCertIssuer(issuerName),
@@ -119,6 +131,8 @@ func Test_NewIngress_PathRoutingMode(t *testing.T) {
 			require.Equal(t, "/"+gs.Name, ig.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Path)
 			require.Contains(t, ig.Labels, gameserver.AgonesGameServerNameLabel)
 			require.Equal(t, ig.Labels[gameserver.AgonesGameServerNameLabel], gs.Name)
+			require.Contains(t, ig.Annotations, customAnnotation)
+			require.Equal(t, ig.Annotations[customAnnotation], customAnnotationValue)
 			require.Equal(t, []metav1.OwnerReference{*ref}, ig.OwnerReferences)
 			require.Equal(t, tls, ig.Spec.TLS)
 			require.Equal(t, rules, ig.Spec.Rules)
