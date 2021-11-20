@@ -1,0 +1,11 @@
+name: golang-pipeline
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-go@v2
+        name: Run Unit Tests
+        with:
+          go-version: '1.17'
+        run: go test ./...
