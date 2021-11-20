@@ -69,7 +69,7 @@ spec:
     spec:
       serviceAccountName: octops
       containers:
-        - image: octops/gameserver-ingress-controller:0.1.2
+        - image: octops/gameserver-ingress-controller:0.1.3
           name: controller
           args:
             - --sync-period=15s
