@@ -12,6 +12,21 @@ import (
 
 type IngressOption func(gs *agonesv1.GameServer, ingress *networkingv1.Ingress) error
 
+func WithCustomAnnotations() IngressOption {
+	return func(gs *agonesv1.GameServer, ingress *networkingv1.Ingress) error {
+		annotations := ingress.Annotations
+		for k, v := range gs.Annotations {
+			if strings.HasPrefix(k, gameserver.OctopsAnnotationCustomIngress) {
+				custom := strings.Replace(k, gameserver.OctopsAnnotationCustomIngress, "", -1)
+				annotations[custom] = v
+			}
+		}
+
+		ingress.SetAnnotations(annotations)
+		return nil
+	}
+}
+
 func WithTLS(mode gameserver.IngressRoutingMode) IngressOption {
 	return func(gs *agonesv1.GameServer, ingress *networkingv1.Ingress) error {
 		errMsgInvalidAnnotation := func(mode, annotation string) error {
