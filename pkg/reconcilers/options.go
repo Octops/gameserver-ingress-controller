@@ -18,6 +18,9 @@ func WithCustomAnnotations() IngressOption {
 		for k, v := range gs.Annotations {
 			if strings.HasPrefix(k, gameserver.OctopsAnnotationCustomPrefix) {
 				custom := strings.TrimPrefix(k, gameserver.OctopsAnnotationCustomPrefix)
+				if len(custom) == 0 {
+					return errors.New("custom annotation does not contain a suffix")
+				}
 				annotations[custom] = v
 			}
 		}

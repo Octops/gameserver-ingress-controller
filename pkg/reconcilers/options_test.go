@@ -17,6 +17,7 @@ func Test_WithCustomAnnotations(t *testing.T) {
 		annotations map[string]string
 		expected    map[string]string
 		notExpected map[string]string
+		wantErr     bool
 	}{
 		{
 			name: "with single custom annotation",
@@ -87,6 +88,14 @@ func Test_WithCustomAnnotations(t *testing.T) {
         }`,
 			},
 		},
+		{
+			name: "error with annotations prefix only",
+			annotations: map[string]string{
+				newCustomAnnotation(""): "anyValue",
+			},
+			expected: map[string]string{},
+			wantErr:  true,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -94,7 +103,12 @@ func Test_WithCustomAnnotations(t *testing.T) {
 			gs := newGameServer(tc.annotations)
 
 			ingress, err := newIngress(gs, WithCustomAnnotations())
-			require.NoError(t, err)
+			if tc.wantErr {
+				require.Error(t, err)
+				require.Equal(t, "custom annotation does not contain a suffix", err.Error())
+			} else {
+				require.NoError(t, err)
+			}
 
 			for k, v := range tc.expected {
 				value, ok := ingress.Annotations[k]
