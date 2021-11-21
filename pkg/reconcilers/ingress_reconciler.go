@@ -3,6 +3,7 @@ package reconcilers
 import (
 	agonesv1 "agones.dev/agones/pkg/apis/agones/v1"
 	"context"
+	"github.com/Octops/gameserver-ingress-controller/internal/runtime"
 	"github.com/Octops/gameserver-ingress-controller/pkg/gameserver"
 	"github.com/pkg/errors"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -59,8 +60,11 @@ func (r *IngressReconciler) reconcileNotFound(ctx context.Context, gs *agonesv1.
 
 	result, err := r.Client.NetworkingV1().Ingresses(gs.Namespace).Create(ctx, ingress, metav1.CreateOptions{})
 	if err != nil {
-		r.recorder.RecordFailed(gs, IngressKind, err)
-		return nil, errors.Wrapf(err, "failed to push ingress %s for gameserver %s", ingress.Name, gs.Name)
+		if !k8serrors.IsAlreadyExists(err) {
+			r.recorder.RecordFailed(gs, IngressKind, err)
+			return nil, errors.Wrapf(err, "failed to push ingress %s for gameserver %s", ingress.Name, gs.Name)
+		}
+		runtime.Logger().Debug(err)
 	}
 
 	r.recorder.RecordSuccess(gs, IngressKind)
