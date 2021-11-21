@@ -55,7 +55,7 @@ to quickly create a Cobra application.`,
 			Kubeconfig: kubeconfig,
 			SyncPeriod: syncPeriod,
 			Port:       port,
-			Verbose:    false,
+			Verbose:    verbose,
 		})
 	},
 }
