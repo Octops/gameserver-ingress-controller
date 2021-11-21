@@ -19,17 +19,11 @@ import (
 	"context"
 	"fmt"
 	"github.com/Octops/gameserver-ingress-controller/internal/runtime"
-	"github.com/Octops/gameserver-ingress-controller/pkg/controller"
-	"github.com/Octops/gameserver-ingress-controller/pkg/handlers"
-	"github.com/Octops/gameserver-ingress-controller/pkg/k8sutil"
-	"github.com/Octops/gameserver-ingress-controller/pkg/manager"
-	"github.com/spf13/cobra"
-	"os"
-	"time"
-
-	agonesv1 "agones.dev/agones/pkg/apis/agones/v1"
+	"github.com/Octops/gameserver-ingress-controller/pkg/app"
 	homedir "github.com/mitchellh/go-homedir"
+	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"os"
 )
 
 var (
@@ -38,6 +32,7 @@ var (
 	kubeconfig string
 	syncPeriod string
 	port       int
+	verbose    bool
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -53,34 +48,15 @@ to quickly create a Cobra application.`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
-		logger := runtime.NewLogger(true)
-
-		clientConf, err := k8sutil.NewClusterConfig(kubeconfig)
-		if err != nil {
-			logger.Fatal(err)
-		}
-
-		duration, err := time.ParseDuration(syncPeriod)
-		if err != nil {
-			logger.WithError(err).Fatalf("error parsing sync-period flag: %s", syncPeriod)
-		}
-
-		mgr, err := manager.NewManager(clientConf, manager.Options{
-			SyncPeriod: &duration,
-			Port:       port,
-		})
-
-		logger.Info("starting gameserver controller")
-		ctrl, err := controller.NewGameServerController(mgr, handlers.NewGameSeverEventHandler(clientConf, mgr.GetEventRecorderFor("gameserver-ingress-controller")), controller.Options{
-			For: &agonesv1.GameServer{},
-		})
-
 		ctx, cancel := context.WithCancel(context.Background())
 		runtime.SetupSignal(cancel)
 
-		if err := ctrl.Start(ctx); err != nil {
-			logger.Fatal(err)
-		}
+		app.StartController(ctx, app.Config{
+			Kubeconfig: kubeconfig,
+			SyncPeriod: syncPeriod,
+			Port:       port,
+			Verbose:    false,
+		})
 	},
 }
 
@@ -102,6 +78,7 @@ func init() {
 	rootCmd.Flags().StringVar(&masterURL, "master", "", "The addr of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
 	rootCmd.Flags().StringVar(&syncPeriod, "sync-period", "15s", "Set the minimum frequency at which watched resources are reconciled")
 	rootCmd.Flags().IntVar(&port, "port", 30234, "Port used by the manager for webhooks")
+	rootCmd.Flags().BoolVar(&verbose, "verbose", false, "Produce verbose log")
 }
 
 // initConfig reads in config file and ENV variables if set.
