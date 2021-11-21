@@ -21,9 +21,9 @@ import (
 	"github.com/Octops/gameserver-ingress-controller/internal/runtime"
 	"github.com/Octops/gameserver-ingress-controller/pkg/controller"
 	"github.com/Octops/gameserver-ingress-controller/pkg/handlers"
+	"github.com/Octops/gameserver-ingress-controller/pkg/k8sutil"
 	"github.com/Octops/gameserver-ingress-controller/pkg/manager"
 	"github.com/spf13/cobra"
-	"k8s.io/client-go/tools/clientcmd"
 	"os"
 	"time"
 
@@ -55,7 +55,7 @@ to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		logger := runtime.NewLogger(true)
 
-		clientConf, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+		clientConf, err := k8sutil.NewClusterConfig(kubeconfig)
 		if err != nil {
 			logger.Fatal(err)
 		}
