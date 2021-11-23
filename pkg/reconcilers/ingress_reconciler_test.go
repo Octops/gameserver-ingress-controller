@@ -33,7 +33,7 @@ func Test_NewIngress_DomainRoutingMode(t *testing.T) {
 			customAnnotation := "my_custom_annotation"
 			customAnnotationValue := "my_custom_annotation_value"
 
-			gs := newGameServer(map[string]string{
+			gs := newGameServer("simple-gameserver", "default", map[string]string{
 				gameserver.OctopsAnnotationIngressMode:                     string(gameserver.IngressRoutingModeDomain),
 				gameserver.OctopsAnnotationIngressDomain:                   domain,
 				gameserver.OctopsAnnotationTerminateTLS:                    strconv.FormatBool(tc.terminateTLS),
@@ -102,7 +102,7 @@ func Test_NewIngress_PathRoutingMode(t *testing.T) {
 			customAnnotation := "my_custom_annotation"
 			customAnnotationValue := "my_custom_annotation_value"
 
-			gs := newGameServer(map[string]string{
+			gs := newGameServer("simple-gameserver", "default", map[string]string{
 				gameserver.OctopsAnnotationIngressFQDN:                     fqdn,
 				gameserver.OctopsAnnotationIngressMode:                     string(gameserver.IngressRoutingModePath),
 				gameserver.OctopsAnnotationTerminateTLS:                    strconv.FormatBool(tc.terminateTLS),
@@ -148,11 +148,11 @@ func Test_NewIngress_PathRoutingMode(t *testing.T) {
 	}
 }
 
-func newGameServer(annotations map[string]string) *agonesv1.GameServer {
+func newGameServer(name, namespace string, annotations map[string]string) *agonesv1.GameServer {
 	return &agonesv1.GameServer{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        "simple-gameserver",
-			Namespace:   "default",
+			Name:        name,
+			Namespace:   namespace,
 			Annotations: annotations,
 		},
 		Status: agonesv1.GameServerStatus{
