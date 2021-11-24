@@ -3,6 +3,7 @@ package reconcilers
 import (
 	"fmt"
 	"github.com/Octops/gameserver-ingress-controller/pkg/gameserver"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
@@ -202,7 +203,7 @@ func Test_WithTLS(t *testing.T) {
 			if tc.wantErr {
 				require.Error(t, err)
 				require.Nil(t, ingress)
-				require.Equal(t, "gameserver default/"+gs.Name+" has annotation "+gameserver.OctopsAnnotationsTLSSecretName+" but it is empty", err.Error())
+				require.Equal(t, errors.Errorf(gameserver.ErrGameServerAnnotationEmpty, gs.Namespace, gs.Name, gameserver.OctopsAnnotationsTLSSecretName).Error(), err.Error())
 			} else {
 				require.NoError(t, err)
 				require.NotNil(t, ingress)

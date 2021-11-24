@@ -33,7 +33,7 @@ func WithCustomAnnotations() IngressOption {
 func WithTLS(mode gameserver.IngressRoutingMode) IngressOption {
 	return func(gs *agonesv1.GameServer, ingress *networkingv1.Ingress) error {
 		errMsgInvalidAnnotation := func(mode, annotation string) error {
-			return errors.Errorf("ingress routing mode %s requires the annotation %s to be set", mode, annotation)
+			return errors.Errorf(gameserver.ErrIngressRoutingModeEmpty, mode, annotation)
 		}
 
 		var host, secret string
@@ -43,7 +43,7 @@ func WithTLS(mode gameserver.IngressRoutingMode) IngressOption {
 		if !ok {
 			secret = fmt.Sprintf("%s-tls", gs.Name)
 		} else if len(secret) == 0 {
-			return errors.Errorf("gameserver %s/%s has annotation %s but it is empty", gs.Namespace, gs.Name, gameserver.OctopsAnnotationsTLSSecretName)
+			return errors.Errorf(gameserver.ErrGameServerAnnotationEmpty, gs.Namespace, gs.Name, gameserver.OctopsAnnotationsTLSSecretName)
 		}
 
 		hostForDomain := func(gs *agonesv1.GameServer) (fqdn string, err error) {
