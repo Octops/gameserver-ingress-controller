@@ -29,6 +29,7 @@ spec:
       annotations:
         octops.io/gameserver-ingress-mode: "domain"
         octops.io/gameserver-ingress-domain: "example.com"
+        #octops.io/tls-secret-name: "custom-secret"
         octops.io/terminate-tls: "true"
         octops.io/issuer-tls-name: "selfsigned-issuer"
     spec:

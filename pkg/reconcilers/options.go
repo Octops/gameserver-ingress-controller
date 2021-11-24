@@ -33,37 +33,44 @@ func WithCustomAnnotations() IngressOption {
 func WithTLS(mode gameserver.IngressRoutingMode) IngressOption {
 	return func(gs *agonesv1.GameServer, ingress *networkingv1.Ingress) error {
 		errMsgInvalidAnnotation := func(mode, annotation string) error {
-			return errors.Errorf("ingress routing mode %s requires the annotation %s to be set", mode, annotation)
-		}
-
-		tlsForDomain := func(gs *agonesv1.GameServer) (fqdn, secretName string, err error) {
-			domain, ok := gameserver.HasAnnotation(gs, gameserver.OctopsAnnotationIngressDomain)
-			if !ok {
-				return "", "", errMsgInvalidAnnotation(mode.String(), gameserver.OctopsAnnotationIngressDomain)
-			}
-
-			return fmt.Sprintf("%s.%s", gs.Name, domain), fmt.Sprintf("%s-tls", gs.Name), nil
-		}
-
-		tlsForPath := func(gs *agonesv1.GameServer) (fqdn, secretName string, err error) {
-			fqdn, ok := gameserver.HasAnnotation(gs, gameserver.OctopsAnnotationIngressFQDN)
-			if !ok {
-				return "", "", errMsgInvalidAnnotation(mode.String(), gameserver.OctopsAnnotationIngressFQDN)
-			}
-
-			return fqdn, fmt.Sprintf("%s-tls", gs.Name), nil
+			return errors.Errorf(gameserver.ErrIngressRoutingModeEmpty, mode, annotation)
 		}
 
 		var host, secret string
 		var err error
 
+		secret, ok := gameserver.HasAnnotation(gs, gameserver.OctopsAnnotationsTLSSecretName)
+		if !ok {
+			secret = fmt.Sprintf("%s-tls", gs.Name)
+		} else if len(secret) == 0 {
+			return errors.Errorf(gameserver.ErrGameServerAnnotationEmpty, gs.Namespace, gs.Name, gameserver.OctopsAnnotationsTLSSecretName)
+		}
+
+		hostForDomain := func(gs *agonesv1.GameServer) (fqdn string, err error) {
+			domain, ok := gameserver.HasAnnotation(gs, gameserver.OctopsAnnotationIngressDomain)
+			if !ok {
+				return "", errMsgInvalidAnnotation(mode.String(), gameserver.OctopsAnnotationIngressDomain)
+			}
+
+			return fmt.Sprintf("%s.%s", gs.Name, domain), nil
+		}
+
+		hostForPath := func(gs *agonesv1.GameServer) (fqdn string, err error) {
+			fqdn, ok := gameserver.HasAnnotation(gs, gameserver.OctopsAnnotationIngressFQDN)
+			if !ok {
+				return "", errMsgInvalidAnnotation(mode.String(), gameserver.OctopsAnnotationIngressFQDN)
+			}
+
+			return fqdn, nil
+		}
+
 		switch mode {
 		case gameserver.IngressRoutingModePath:
-			host, secret, err = tlsForPath(gs)
+			host, err = hostForPath(gs)
 		case gameserver.IngressRoutingModeDomain:
 			fallthrough
 		default:
-			host, secret, err = tlsForDomain(gs)
+			host, err = hostForDomain(gs)
 		}
 
 		if err != nil {
