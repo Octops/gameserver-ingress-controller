@@ -131,6 +131,7 @@ The table below shows how the information from the gameserver is used to compose
 |annotation: octops.io/terminate-tls | terminate TLS |
 |annotation: octops.io/issuer-tls-name| name of the issuer |
 |annotation: octops-[custom-annotation] | custom-annotation |
+|annotation: octops.io/tls-secret-name | custom ingress secret |
 
 ### Custom Annotations
 Any Fleet or GameServer annotation that contains the prefix `octops-` will be added down to the Ingress resourced crated by the controller.
@@ -195,7 +196,7 @@ The following components must be present on the Kubernetes cluster where the ded
 - **octops.io/gameserver-ingress-fqdn:** full domain name where gameservers will be accessed based on the URL path.
 - **octops.io/terminate-tls:** it determines if the ingress will terminate TLS. If set to "false" it means that TLS will be terminated at the loadbalancer. In this case there won't be a certificated issued by the local cert-manager.
 - **octops.io/issuer-tls-name:** required if `terminate-tls=true`. This is the name of the issuer that cert-manager will use when creating the certificate for the ingress.
-
+- **octops.io/tls-secret-name:** ignore CertManager and sets the secret to be used by the Ingress. This secret might be provisioned by other means.
 
 The same configuration works for Fleets and GameServers. Add the following annotations to your manifest:
 ```yaml
