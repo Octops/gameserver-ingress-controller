@@ -97,7 +97,7 @@ latest: docker
 	docker tag $(DOCKER_IMAGE_TAG) $(IMAGE_REPO):latest
 	docker push $(IMAGE_REPO):latest
 
-release: docker
+release: latest
 	docker tag $(DOCKER_IMAGE_TAG) $(IMAGE_REPO):$(RELEASE_TAG)
 	docker push $(IMAGE_REPO):$(RELEASE_TAG)
 
