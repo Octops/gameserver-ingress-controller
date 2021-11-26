@@ -27,12 +27,14 @@ import (
 )
 
 var (
-	cfgFile    string
-	masterURL  string
-	kubeconfig string
-	syncPeriod string
-	port       int
-	verbose    bool
+	cfgFile                string
+	masterURL              string
+	kubeconfig             string
+	syncPeriod             string
+	webhookPort            int
+	healthProbeBindAddress string
+	metricsBindAddress     string
+	verbose                bool
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -52,10 +54,12 @@ to quickly create a Cobra application.`,
 		runtime.SetupSignal(cancel)
 
 		app.StartController(ctx, app.Config{
-			Kubeconfig: kubeconfig,
-			SyncPeriod: syncPeriod,
-			Port:       port,
-			Verbose:    verbose,
+			Kubeconfig:             kubeconfig,
+			SyncPeriod:             syncPeriod,
+			Port:                   webhookPort,
+			HealthProbeBindAddress: healthProbeBindAddress,
+			MetricsBindAddress:     metricsBindAddress,
+			Verbose:                verbose,
 		})
 	},
 }
@@ -77,7 +81,9 @@ func init() {
 	rootCmd.Flags().StringVar(&kubeconfig, "kubeconfig", "", "Set KUBECONFIG")
 	rootCmd.Flags().StringVar(&masterURL, "master", "", "The addr of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
 	rootCmd.Flags().StringVar(&syncPeriod, "sync-period", "15s", "Set the minimum frequency at which watched resources are reconciled")
-	rootCmd.Flags().IntVar(&port, "port", 30234, "Port used by the manager for webhooks")
+	rootCmd.Flags().StringVar(&healthProbeBindAddress, "health-probe-addrs", ":30235", "TCP address that the controller should bind to for serving health probes")
+	rootCmd.Flags().StringVar(&metricsBindAddress, "metrics-addrs", ":9090", "TCP address that the controller should bind to for serving prometheus metrics")
+	rootCmd.Flags().IntVar(&webhookPort, "webhook-port", 30234, "Port used by the controller for webhooks")
 	rootCmd.Flags().BoolVar(&verbose, "verbose", false, "Produce verbose log")
 }
 
