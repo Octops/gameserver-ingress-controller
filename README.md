@@ -40,6 +40,11 @@ Check the [examples](examples) folder for a full Fleet manifest that uses the `D
 ### Path
 There is one global domain and gameservers are available using the URL path. I.e.: `https://servers.example.com/octops-2dnqv-jmqgp` or `https://servers.example.com/octops-g6qkw-gnp2h`
 
+When using the `path` mode, gameservers should expect traffic on the "/" path. The gameserver-ingress-controller uses the https://kubernetes.github.io/ingress-nginx/examples/rewrite/#rewrite-target feature to make sure no additional segment from the path is passed down to the gameserver.
+
+If a gameserver has a `/healthz` endpoint, the following request should be expected at the gameserver container level:
+`https://servers.example.com/octops-2dnqv-jmqgp/healthz` --> `/healthz`
+
 ```yaml
 # simplified Fleet manifest for Path mode
 # each GameServer is accessible using the combination: servers.example.com/[gameserver_name]
