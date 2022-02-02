@@ -104,7 +104,7 @@ func WithIngressRule(mode gameserver.IngressRoutingMode) IngressOption {
 			if !ok {
 				return errMsgInvalidAnnotation(mode.String(), gameserver.OctopsAnnotationIngressFQDN, gs.Name)
 			}
-			host, path = fqdn, "/"+gs.Name
+			host, path = fqdn, configureIngressRewriteTarget(ingress, gs.Name)
 		case gameserver.IngressRoutingModeDomain:
 			fallthrough
 		default:
@@ -177,4 +177,13 @@ func newIngressTLS(host, secretName string) []networkingv1.IngressTLS {
 			SecretName: fmt.Sprintf("%s-tls", strings.TrimSpace(secretName)),
 		},
 	}
+}
+
+func configureIngressRewriteTarget(ingress *networkingv1.Ingress, gsName string) (path string) {
+	if _, ok := ingress.Annotations[NginxRewriteTargetAnnotation]; !ok {
+		ingress.Annotations[NginxRewriteTargetAnnotation] = NginxRewriteTargetAnnotationValue
+		return fmt.Sprintf(NginxRewriteTargetPathFormat, gsName)
+	}
+
+	return fmt.Sprintf("/%s", gsName)
 }

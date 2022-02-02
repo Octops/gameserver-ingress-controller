@@ -8,6 +8,10 @@ const (
 	ReasonReconcileFailed          = "Failed"
 	ReasonReconciled               = "Created"
 	ReasonReconcileCreating        = "Creating"
+
+	NginxRewriteTargetAnnotation      = "nginx.ingress.kubernetes.io/rewrite-target"
+	NginxRewriteTargetAnnotationValue = "/$2"
+	NginxRewriteTargetPathFormat      = "/%s(/|$)(.*)"
 )
 
 var (
