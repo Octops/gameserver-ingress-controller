@@ -31,7 +31,7 @@ spec:
 #        octops.io/gameserver-ingress-domain: "example.com"
         octops.io/gameserver-ingress-mode: "path"
         octops.io/gameserver-ingress-fqdn: "servers.example.com"
-        octops-kubernetes.io/ingress.class: haproxy
+        octops-kubernetes.io/ingress.class: "haproxy"
     spec:
       health:
         disabled: true
