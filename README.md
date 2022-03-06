@@ -9,6 +9,34 @@ Players will be able to connect to a dedicated game server using a custom domain
 - Fleets
 - Stand-Alone GameServers
 
+## Use Cases
+- Real-time games using websocket
+
+## Known Limitations
+For the GameServer Controller to work, an Ingress Controller must be present in the cluster. The one that has been mostly adopted by the Kubernetes community is the NGINX Ingress Controller. However, it has been reported by the community that for games based on websocket the NGINX controller might not be a good fit due to the lost of connections between restarts. Check https://kubernetes.github.io/ingress-nginx/how-it-works/#when-a-reload-is-required for details.
+
+You can find more information on the original reported issue https://github.com/Octops/gameserver-ingress-controller/issues/21.
+
+For that reason the suggested Ingress Controller is - [HAProxy Ingress Controller](https://github.com/haproxytech/kubernetes-ingress).
+
+## Requirements
+The following components must be present on the Kubernetes cluster where the dedicated gameservers, and the controller will be hosted/deployed.
+
+- [Agones](https://agones.dev/site)
+  - https://agones.dev/site/docs/installation/install-agones/helm/
+- [HAProxy Ingress Controller](https://github.com/haproxytech/kubernetes-ingress)
+  - Choose the appropriate setup depending on your environment, network topology and cloud provider. It will affect how the Ingress Service will be exposed to the internet.
+  - Update the DNS information to reflect the name/address of the load balancer pointing to the exposed service. You can find this information running `kubectl -n haproxy-controller get svc` and checking the column `EXTERNAL-IP`.
+  - The DNS record must be a `*` wildcard record. That will allow any gameserver to be placed under the desired domain automatically.
+  - [Install Instructions](https://www.haproxy.com/documentation/kubernetes/latest/installation/community/kubernetes/)
+- [Cert-Manager](https://cert-manager.io/docs/) - [optional if you are managing your own certificates]
+  - Check https://cert-manager.io/docs/tutorials/acme/http-validation/ to understand which type of issuer you should use.
+  - Make sure you have an `Issuer` that uses LetsEncrypt. You can find some examples on [deploy/cert-manager](deploy/cert-manager).
+  - The name of the `Issuer` must be the same used on the Fleet annotation `octops.io/issuer-tls-name`.
+  - Install: ```$ kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.7.1/cert-manager.yaml```
+
+# Configuration and Manifests
+
 ## Ingress Routing Mode
 The controller supports 2 different types of ingress routing mode: Domain and Path.
 
@@ -58,11 +86,6 @@ spec:
 
 Check the [examples](examples) folder for a full Fleet manifest that uses the `Path` routing mode.
 
-## Limitations
-The NGINX Ingress controller does not support TCP/UDP services. You can find more information on https://kubernetes.github.io/ingress-nginx/user-guide/exposing-tcp-udp-services.
-
-However, the gameserver ingress controller will work with any game that uses HTTP, TLS and/or websocket.
-
 ## How it works
 When a gameserver is created by Agones, either as part of a Fleet or a stand-alone deployment, the gameserver ingress controller will handle the provisioning of a couple of resources.
 
@@ -95,12 +118,12 @@ spec:
  ...
 ```
 
-Deployed Gameservers:
+Deployed GameServers:
 ```bash
 NAME                 STATE   ADDRESS         PORT   NODE     AGE
 octops-2dnqv-jmqgp   Ready   36.23.134.23    7437   node-1   10m
 octops-2dnqv-d9nxd   Ready   36.23.134.23    7323   node-1   10m
-octops-2dnqv-fr8tx   Ready   212.76.142.33   7779   node-2   10m
+octops-2dnqv-fr8tx   Ready   32.76.142.33    7779   node-2   10m
 ```
 
 Ingresses created by the controller:
@@ -111,7 +134,7 @@ octops-2dnqv-d9nxd   octops-2dnqv-d9nxd.example.com                   80, 443   
 octops-2dnqv-fr8tx   octops-2dnqv-fr8tx.example.com                   80, 443   4m45s
 ```
 
-List of Ingresses and Backends
+Proxy Mapping - Ingress x GameServer 
 ```bash
 
 https://octops-2dnqv-jmqgp.example.com/ ⇢ octops-2dnqv-jmqgp:7437
@@ -134,61 +157,34 @@ The table below shows how the information from the gameserver is used to compose
 |annotation: octops.io/tls-secret-name | custom ingress secret |
 
 ### Custom Annotations
-Any Fleet or GameServer annotation that contains the prefix `octops-` will be added down to the Ingress resourced crated by the controller.
+Any Fleet or GameServer resource annotation that contains the prefix `octops-` will be added down to the Ingress resourced crated by the controller.
 
-`octops-nginx.ingress.kubernetes.io/proxy-read-timeout ` :`10`
+`octops-haproxy.org/server-ssl` :`true`
 
 Will be added to the ingress in the following format:
 
-`nginx.ingress.kubernetes.io/proxy-read-timeout `:`10`
+`haproxy.org/server-ssl` :`true`
 
-**Any annotation can be used and it is not restricted to NGINX controller annotations**
+**Any annotation can be used. It is not restricted to the [HAProxy controller annotations](https://www.haproxy.com/documentation/kubernetes/latest/configuration/ingress/)**
 
 `octops-my-custom-annotations`: `my-custom-value` will be passed to the Ingress resource as:
 
 `my-custom-annotations`: `my-custom-value`
 
-Multiline is also supported
+Multiline is also supported, I.e.:
 
 ```yaml
 annotations:
-    octops-nginx.ingress.kubernetes.io/server-snippet: |
-          set $agentflag 0;
-
-          if ($http_user_agent ~* "(Mobile)" ){
-            set $agentflag 1;
-          }
-
-          if ( $agentflag = 1 ) {
-            return 301 https://m.example.com;
-          }
+    octops-haproxy.org/backend-config-snippet: |
+      http-send-name-header x-dst-server
+      stick-table type string len 32 size 100k expire 30m
+      stick on req.cook(sessionid)
 ```
 
 **Remember that the max length of a label name is 63 characters. That limit is imposed by Kubernetes**
 
 https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
-
-## Clean up and Gameserver Lifecycle
-Every resource created by the gameserver ingress controller is attached to the gameserver itself. That means, when a gameserver is deleted from the cluster all its dependencies will be cleaned up by the Kubernetes garbage collector.
-
-**Manual deletion of services and ingresses is not required by the operator of the cluster.**
-
-## Requirements
-The following components must be present on the Kubernetes cluster where the dedicated gameservers, and the controller will be hosted/deployed.
-
-- [Agones](https://agones.dev/site)
-  - https://agones.dev/site/docs/installation/install-agones/helm/
-- [NGINX Ingress Controller](https://kubernetes.github.io/ingress-nginx/)
-  - Choose the appropriate setup depending on your environment, network topology and cloud provider. It will affect how the Ingress Service will be exposed to the internet.
-  - Update the DNS information to reflect the name/address of the loadbalancer pointing to the exposed service. You can find this information running `kubectl -n ingress-nginx get svc` and checking the column `EXTERNAL-IP`.
-  - The DNS record must be a `*` wildcard record. That will allow any gameserver to be placed under the desired domain automatically.
-  - Install: https://kubernetes.github.io/ingress-nginx/deploy/
-- [Cert-Manager](https://cert-manager.io/docs/)
-  - Check https://cert-manager.io/docs/tutorials/acme/http-validation/ to understand which type of issuer you should use. 
-  - Make sure you have an `Issuer` that uses LetsEncrypt. You can find some examples on [deploy/cert-manager](deploy/cert-manager).
-  - The name of the `Issuer` must be the same used on the Fleet annotation `octops.io/issuer-tls-name`.  
-  - Install: ```$ kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.1.0/cert-manager.yaml```
-  
+ 
 ## Fleet and GameServer Manifests
 
 - **octops.io/gameserver-ingress-mode:** defines the ingress routing mode, possible values are: domain or path.
@@ -218,12 +214,17 @@ annotations:
 ```
 
 ```yaml
-# Optional and can be ignored if TLS is not terminated by the ingress
+# Optional and can be ignored if TLS is not terminated by the ingress controller
 octops.io/terminate-tls: "true"
 octops.io/issuer-tls-name: "selfsigned-issuer"
 ```
 
-## Deploy the Gameserver Ingress Controller
+# Clean up and GameServer Lifecycle
+Every resource created by the octops ingress controller is attached to the gameserver itself. That means, when a gameserver is deleted from the cluster all its dependencies will be cleaned up by the Kubernetes garbage collector.
+
+**Manual deletion of services and ingresses is not required by the operator of the cluster.**
+
+# Deploy the Gameserver Ingress Controller
 
 Deploy the controller running:
 ```bash
@@ -255,7 +256,7 @@ You can track events recorded for each GameServer running `kubectl get events [-
 ...
 ```
 
-The controller will record errors if a resource can be created.
+The controller will record errors if a resource can't be created.
 ```
 0s Warning Failed  gameserver/octops-domain-zxt2q-6xl6r  Failed to create Ingress for gameserver default/octops-domain-zxt2q-6xl6r: ingress routing mode domain requires the annotation octops.io/gameserver-ingress-domain to be present on octops-domain-zxt2q-6xl6r, check your Fleet or GameServer manifest.
 ```
