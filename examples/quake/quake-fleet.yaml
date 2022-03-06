@@ -56,6 +56,7 @@ spec:
         cluster: gke-1.17
         region: us-east-1
       annotations:
+        octops-kubernetes.io/ingress.class: "haproxy"
         octops.io/gameserver-ingress-mode: "domain"
         octops.io/gameserver-ingress-domain: "arena.com"
         octops.io/terminate-tls: "true"

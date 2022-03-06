@@ -27,6 +27,7 @@ spec:
         cluster: gke-1.17
         region: us-east-1
       annotations:
+        octops-kubernetes.io/ingress.class: "haproxy"
         octops.io/gameserver-ingress-mode: "path"
         octops.io/gameserver-ingress-fqdn: "servers.example.com"
         #octops.io/tls-secret-name: "custom-secret"

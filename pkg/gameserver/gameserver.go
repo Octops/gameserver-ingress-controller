@@ -18,7 +18,7 @@ const (
 	OctopsAnnotationIssuerName     = "octops.io/issuer-tls-name"
 	OctopsAnnotationCustomPrefix   = "octops-"
 
-	CertManagerAnnotationIssuer = "cert-manager.io/issuer"
+	CertManagerAnnotationIssuer = "cert-manager.io/cluster-issuer"
 	AgonesGameServerNameLabel   = "agones.dev/gameserver"
 
 	ErrGameServerAnnotationEmpty = "gameserver %s/%s has annotation %s but it is empty"

@@ -27,21 +27,24 @@ spec:
         cluster: gke-1.22
         region: us-east-1
       annotations:
-        octops.io/gameserver-ingress-mode: "domain"
-        octops.io/gameserver-ingress-domain: "example.com"
-        octops.io/terminate-tls: "true"
-        octops.io/issuer-tls-name: "selfsigned-issuer"
+#        octops.io/gameserver-ingress-mode: "domain"
+#        octops.io/gameserver-ingress-domain: "example.com"
+        octops.io/gameserver-ingress-mode: "path"
+        octops.io/gameserver-ingress-fqdn: "servers.example.com"
+        octops-kubernetes.io/ingress.class: "haproxy"
     spec:
+      health:
+        disabled: true
       ports:
         - name: default
-          containerPort: 8088
+          containerPort: 8010
           protocol: TCP
       template:
         spec:
           containers:
             - name: gameserver
               imagePullPolicy: Always
-              image: octops/gameserver-http:latest
+              image: ksdn117/web-socket-test
               resources:
                 requests:
                   memory: "64Mi"
