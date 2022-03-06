@@ -56,37 +56,25 @@ func Test_WithCustomAnnotations(t *testing.T) {
 		{
 			name: "with complex annotations",
 			annotations: map[string]string{
-				newCustomAnnotation("nginx.ingress.kubernetes.io/proxy-read-timeout"): "10",
+				newCustomAnnotation("haproxy.org/rate-limit-status-code"): "429",
 			},
 			expected: map[string]string{
-				"nginx.ingress.kubernetes.io/proxy-read-timeout": "10",
+				"haproxy.org/rate-limit-status-code": "429",
 			},
 		},
 		{
 			name: "with multiline annotation",
 			annotations: map[string]string{
-				newCustomAnnotation("nginx.ingress.kubernetes.io/server-snippet"): `|
-        set $agentflag 0;
-
-        if ($http_user_agent ~* "(Mobile)" ){
-          set $agentflag 1;
-        }
-
-        if ( $agentflag = 1 ) {
-          return 301 https://m.example.com;
-        }`,
+				newCustomAnnotation("haproxy.org/backend-config-snippet"): `|
+        http-send-name-header x-dst-server
+        stick-table type string len 32 size 100k expire 30m
+        stick on req.cook(sessionid)`,
 			},
 			expected: map[string]string{
-				"nginx.ingress.kubernetes.io/server-snippet": `|
-        set $agentflag 0;
-
-        if ($http_user_agent ~* "(Mobile)" ){
-          set $agentflag 1;
-        }
-
-        if ( $agentflag = 1 ) {
-          return 301 https://m.example.com;
-        }`,
+				"haproxy.org/backend-config-snippet": `|
+        http-send-name-header x-dst-server
+        stick-table type string len 32 size 100k expire 30m
+        stick on req.cook(sessionid)`,
 			},
 		},
 		{
