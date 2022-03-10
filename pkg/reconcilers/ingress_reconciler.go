@@ -9,24 +9,27 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/client-go/informers/networking/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 )
 
 type IngressReconciler struct {
-	recorder *EventRecorder
 	Client   *kubernetes.Clientset
+	informer v1.IngressInformer
+	recorder *EventRecorder
 }
 
-func NewIngressReconciler(client *kubernetes.Clientset, recorder record.EventRecorder) *IngressReconciler {
+func NewIngressReconciler(client *kubernetes.Clientset, informer v1.IngressInformer, recorder record.EventRecorder) *IngressReconciler {
 	return &IngressReconciler{
-		recorder: NewEventRecorder(recorder),
 		Client:   client,
+		informer: informer,
+		recorder: NewEventRecorder(recorder),
 	}
 }
 
 func (r *IngressReconciler) Reconcile(ctx context.Context, gs *agonesv1.GameServer) (*networkingv1.Ingress, error) {
-	ingress, err := r.Client.NetworkingV1().Ingresses(gs.Namespace).Get(ctx, gs.Name, metav1.GetOptions{})
+	ingress, err := r.informer.Lister().Ingresses(gs.Namespace).Get(gs.Name)
 	if err != nil {
 		if !k8serrors.IsNotFound(err) {
 			return &networkingv1.Ingress{}, errors.Wrapf(err, "error retrieving Ingress %s from namespace %s", gs.Name, gs.Namespace)

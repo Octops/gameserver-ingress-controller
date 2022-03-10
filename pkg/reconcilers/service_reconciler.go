@@ -10,24 +10,27 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	v1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 )
 
 type ServiceReconciler struct {
-	recorder *EventRecorder
 	Client   *kubernetes.Clientset
+	informer v1.ServiceInformer
+	recorder *EventRecorder
 }
 
-func NewServiceReconciler(client *kubernetes.Clientset, recorder record.EventRecorder) *ServiceReconciler {
+func NewServiceReconciler(client *kubernetes.Clientset, informer v1.ServiceInformer, recorder record.EventRecorder) *ServiceReconciler {
 	return &ServiceReconciler{
-		recorder: NewEventRecorder(recorder),
 		Client:   client,
+		informer: informer,
+		recorder: NewEventRecorder(recorder),
 	}
 }
 
 func (r *ServiceReconciler) Reconcile(ctx context.Context, gs *agonesv1.GameServer) (*corev1.Service, error) {
-	service, err := r.Client.CoreV1().Services(gs.Namespace).Get(ctx, gs.Name, metav1.GetOptions{})
+	service, err := r.informer.Lister().Services(gs.Namespace).Get(gs.Name)
 	if err != nil {
 		if !k8serrors.IsNotFound(err) {
 			return &corev1.Service{}, errors.Wrapf(err, "error retrieving Service %s from namespace %s", gs.Name, gs.Namespace)
