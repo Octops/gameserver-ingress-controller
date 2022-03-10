@@ -9,6 +9,8 @@ import (
 	"github.com/Octops/gameserver-ingress-controller/pkg/reconcilers"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	v1 "k8s.io/client-go/informers/core/v1"
+	networkingv1 "k8s.io/client-go/informers/networking/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
@@ -21,7 +23,7 @@ type GameSeverEventHandler struct {
 	ingressReconciler *reconcilers.IngressReconciler
 }
 
-func NewGameSeverEventHandler(config *rest.Config, recorder record.EventRecorder) *GameSeverEventHandler {
+func NewGameSeverEventHandler(config *rest.Config, svcInformer v1.ServiceInformer, ingressInformer networkingv1.IngressInformer, recorder record.EventRecorder) *GameSeverEventHandler {
 	client, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		runtime.Logger().WithError(err).Fatal("failed to create kubernetes client")
@@ -30,8 +32,8 @@ func NewGameSeverEventHandler(config *rest.Config, recorder record.EventRecorder
 	return &GameSeverEventHandler{
 		logger:            runtime.Logger().WithField("role", "event_handler"),
 		client:            client,
-		serviceReconciler: reconcilers.NewServiceReconciler(client, recorder),
-		ingressReconciler: reconcilers.NewIngressReconciler(client, recorder),
+		serviceReconciler: reconcilers.NewServiceReconciler(client, svcInformer, recorder),
+		ingressReconciler: reconcilers.NewIngressReconciler(client, ingressInformer, recorder),
 	}
 }
 

@@ -11,6 +11,9 @@ import (
 	"github.com/Octops/gameserver-ingress-controller/pkg/manager"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"k8s.io/client-go/informers"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
 	"time"
 )
 
@@ -46,8 +49,29 @@ func StartController(ctx context.Context, config Config) error {
 		withFatal(logger, err, "failed to create controller manager")
 	}
 
+	client, err := kubernetes.NewForConfig(clientConf)
+	if err != nil {
+		withFatal(logger, err, "failed to create kubernetes client")
+	}
+
+	factory := informers.NewSharedInformerFactory(client, 0)
+	services := factory.Core().V1().Services()
+	ingresses := factory.Networking().V1().Ingresses()
+	svcInformer := services.Informer()
+	ingInformer := ingresses.Informer()
+
+	stopper := make(chan struct{})
+	defer close(stopper)
+	go factory.Start(stopper)
+
+	logger.Info("waiting for cache to sync")
+	if !cache.WaitForCacheSync(stopper, svcInformer.HasSynced, ingInformer.HasSynced) {
+		withFatal(logger, fmt.Errorf("timed out waiting for caches to sync"), "failed to sync cache")
+	}
+
 	logger.Info("starting gameserver controller")
-	ctrl, err := controller.NewGameServerController(mgr, handlers.NewGameSeverEventHandler(clientConf, mgr.GetEventRecorderFor("gameserver-ingress-controller")), controller.Options{
+	handler := handlers.NewGameSeverEventHandler(clientConf, services, ingresses, mgr.GetEventRecorderFor("gameserver-ingress-controller"))
+	ctrl, err := controller.NewGameServerController(mgr, handler, controller.Options{
 		For: &agonesv1.GameServer{},
 	})
 	if err != nil {
