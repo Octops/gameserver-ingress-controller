@@ -9,11 +9,9 @@ import (
 	"github.com/Octops/gameserver-ingress-controller/pkg/handlers"
 	"github.com/Octops/gameserver-ingress-controller/pkg/k8sutil"
 	"github.com/Octops/gameserver-ingress-controller/pkg/manager"
+	"github.com/Octops/gameserver-ingress-controller/pkg/stores"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"k8s.io/client-go/informers"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 	"time"
 )
 
@@ -27,19 +25,15 @@ type Config struct {
 }
 
 func StartController(ctx context.Context, config Config) error {
+	//TODO: Pass logger as argument
 	logger := runtime.NewLogger(config.Verbose)
-
-	clientConf, err := k8sutil.NewClusterConfig(config.Kubeconfig)
-	if err != nil {
-		withFatal(logger, err, "failed to create cluster config")
-	}
 
 	duration, err := time.ParseDuration(config.SyncPeriod)
 	if err != nil {
 		withFatal(logger, err, fmt.Sprintf("error parsing sync-period flag: %s", config.SyncPeriod))
 	}
 
-	mgr, err := manager.NewManager(clientConf, manager.Options{
+	mgr, err := manager.NewManager(config.Kubeconfig, manager.Options{
 		SyncPeriod:             &duration,
 		Port:                   config.Port,
 		HealthProbeBindAddress: config.HealthProbeBindAddress,
@@ -49,31 +43,22 @@ func StartController(ctx context.Context, config Config) error {
 		withFatal(logger, err, "failed to create controller manager")
 	}
 
-	client, err := kubernetes.NewForConfig(clientConf)
+	client, err := k8sutil.NewClientSet(config.Kubeconfig)
 	if err != nil {
 		withFatal(logger, err, "failed to create kubernetes client")
 	}
 
-	factory := informers.NewSharedInformerFactory(client, 0)
-	services := factory.Core().V1().Services()
-	ingresses := factory.Networking().V1().Ingresses()
-	svcInformer := services.Informer()
-	ingInformer := ingresses.Informer()
-
-	stopper := make(chan struct{})
-	defer close(stopper)
-	go factory.Start(stopper)
-
-	logger.Info("waiting for cache to sync")
-	if !cache.WaitForCacheSync(stopper, svcInformer.HasSynced, ingInformer.HasSynced) {
-		withFatal(logger, fmt.Errorf("timed out waiting for caches to sync"), "failed to sync cache")
+	store, err := stores.NewStore(ctx, client)
+	if err != nil {
+		withFatal(logger, err, "failed to create store")
 	}
 
-	logger.Info("starting gameserver controller")
-	handler := handlers.NewGameSeverEventHandler(clientConf, services, ingresses, mgr.GetEventRecorderFor("gameserver-ingress-controller"))
+	logger.WithField("component", "controller").Info("starting gameserver controller")
+	handler := handlers.NewGameSeverEventHandler(store, mgr.GetEventRecorderFor("gameserver-ingress-controller"))
 	ctrl, err := controller.NewGameServerController(mgr, handler, controller.Options{
 		For: &agonesv1.GameServer{},
 	})
+
 	if err != nil {
 		withFatal(logger, err, "failed to create controller")
 	}
