@@ -1,8 +1,8 @@
 package manager
 
 import (
+	"github.com/Octops/gameserver-ingress-controller/pkg/k8sutil"
 	"github.com/pkg/errors"
-	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"time"
@@ -19,7 +19,12 @@ type Manager struct {
 	manager.Manager
 }
 
-func NewManager(config *rest.Config, options Options) (*Manager, error) {
+func NewManager(kubeconfig string, options Options) (*Manager, error) {
+	config, err := k8sutil.NewClusterConfig(kubeconfig)
+	if err != nil {
+		return nil, withError(errors.Wrap(err, "failed to create cluster config"))
+	}
+
 	mgr, err := manager.New(config, manager.Options{
 		SyncPeriod:             options.SyncPeriod,
 		Port:                   options.Port,

@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"github.com/Octops/gameserver-ingress-controller/internal/runtime"
 	"github.com/Octops/gameserver-ingress-controller/pkg/handlers"
 	"github.com/Octops/gameserver-ingress-controller/pkg/reconcilers"
 	"github.com/sirupsen/logrus"
@@ -32,9 +33,9 @@ type GameServerController struct {
 
 func NewGameServerController(mgr manager.Manager, eventHandler handlers.EventHandler, options Options) (*GameServerController, error) {
 	optFor := reflect.TypeOf(options.For).Elem().String()
-	logger := logrus.WithFields(logrus.Fields{
-		"source":          "controller",
-		"controller_type": optFor,
+	logger := runtime.Logger().WithFields(logrus.Fields{
+		"component": "controller",
+		"resource":  optFor,
 	})
 
 	err := ctrl.NewControllerManagedBy(mgr).
@@ -126,7 +127,6 @@ func NewGameServerController(mgr manager.Manager, eventHandler handlers.EventHan
 		Manager: mgr,
 	}
 
-	logger.Infof("controller created for resource of type %s", optFor)
 	return controller, nil
 }
 
@@ -137,6 +137,7 @@ func (c *GameServerController) Start(ctx context.Context) error {
 		c.Manager.Start(chDone)
 	}()
 
+	c.logger.Info("gameserver controller started")
 	<-ctx.Done()
 
 	return nil
