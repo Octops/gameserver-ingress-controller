@@ -9,33 +9,34 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/client-go/informers/networking/v1"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 )
 
+type IngressStore interface {
+	CreateIngress(ctx context.Context, ingress *networkingv1.Ingress, options metav1.CreateOptions) (*networkingv1.Ingress, error)
+	GetIngress(name, namespace string) (*networkingv1.Ingress, error)
+}
+
 type IngressReconciler struct {
-	Client   *kubernetes.Clientset
-	informer v1.IngressInformer
+	store    IngressStore
 	recorder *EventRecorder
 }
 
-func NewIngressReconciler(client *kubernetes.Clientset, informer v1.IngressInformer, recorder record.EventRecorder) *IngressReconciler {
+func NewIngressReconciler(store IngressStore, recorder record.EventRecorder) *IngressReconciler {
 	return &IngressReconciler{
-		Client:   client,
-		informer: informer,
+		store:    store,
 		recorder: NewEventRecorder(recorder),
 	}
 }
 
 func (r *IngressReconciler) Reconcile(ctx context.Context, gs *agonesv1.GameServer) (*networkingv1.Ingress, error) {
-	ingress, err := r.informer.Lister().Ingresses(gs.Namespace).Get(gs.Name)
+	ingress, err := r.store.GetIngress(gs.Name, gs.Namespace)
 	if err != nil {
-		if !k8serrors.IsNotFound(err) {
-			return &networkingv1.Ingress{}, errors.Wrapf(err, "error retrieving Ingress %s from namespace %s", gs.Name, gs.Namespace)
+		if k8serrors.IsNotFound(err) {
+			return r.reconcileNotFound(ctx, gs)
 		}
 
-		return r.reconcileNotFound(ctx, gs)
+		return nil, errors.Wrapf(err, "error retrieving Ingress %s from namespace %s", gs.Name, gs.Namespace)
 	}
 
 	//TODO: Validate if details still match the GS info
@@ -61,7 +62,7 @@ func (r *IngressReconciler) reconcileNotFound(ctx context.Context, gs *agonesv1.
 		return nil, errors.Wrapf(err, "failed to create ingress for gameserver %s", gs.Name)
 	}
 
-	result, err := r.Client.NetworkingV1().Ingresses(gs.Namespace).Create(ctx, ingress, metav1.CreateOptions{})
+	result, err := r.store.CreateIngress(ctx, ingress, metav1.CreateOptions{})
 	if err != nil {
 		if !k8serrors.IsAlreadyExists(err) {
 			r.recorder.RecordFailed(gs, IngressKind, err)
@@ -82,7 +83,8 @@ func newIngress(gs *agonesv1.GameServer, options ...IngressOption) (*networkingv
 	ref := metav1.NewControllerRef(gs, agonesv1.SchemeGroupVersion.WithKind("GameServer"))
 	ig := &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: gs.Name,
+			Name:      gs.Name,
+			Namespace: gs.Namespace,
 			Labels: map[string]string{
 				gameserver.AgonesGameServerNameLabel: gs.Name,
 			},

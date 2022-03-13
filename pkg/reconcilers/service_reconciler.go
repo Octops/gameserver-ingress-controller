@@ -10,33 +10,34 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	v1 "k8s.io/client-go/informers/core/v1"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 )
 
+type ServiceStore interface {
+	CreateService(ctx context.Context, service *corev1.Service, options metav1.CreateOptions) (*corev1.Service, error)
+	GetService(name, namespace string) (*corev1.Service, error)
+}
+
 type ServiceReconciler struct {
-	Client   *kubernetes.Clientset
-	informer v1.ServiceInformer
+	store    ServiceStore
 	recorder *EventRecorder
 }
 
-func NewServiceReconciler(client *kubernetes.Clientset, informer v1.ServiceInformer, recorder record.EventRecorder) *ServiceReconciler {
+func NewServiceReconciler(store ServiceStore, recorder record.EventRecorder) *ServiceReconciler {
 	return &ServiceReconciler{
-		Client:   client,
-		informer: informer,
+		store:    store,
 		recorder: NewEventRecorder(recorder),
 	}
 }
 
 func (r *ServiceReconciler) Reconcile(ctx context.Context, gs *agonesv1.GameServer) (*corev1.Service, error) {
-	service, err := r.informer.Lister().Services(gs.Namespace).Get(gs.Name)
+	service, err := r.store.GetService(gs.Name, gs.Namespace)
 	if err != nil {
-		if !k8serrors.IsNotFound(err) {
-			return &corev1.Service{}, errors.Wrapf(err, "error retrieving Service %s from namespace %s", gs.Name, gs.Namespace)
+		if k8serrors.IsNotFound(err) {
+			return r.reconcileNotFound(ctx, gs)
 		}
 
-		return r.reconcileNotFound(ctx, gs)
+		return &corev1.Service{}, errors.Wrapf(err, "error retrieving Service %s from namespace %s", gs.Name, gs.Namespace)
 	}
 
 	//TODO: Validate if details still match the GS info
@@ -52,7 +53,7 @@ func (r *ServiceReconciler) reconcileNotFound(ctx context.Context, gs *agonesv1.
 		return nil, errors.Wrapf(err, "failed to create service for gameserver %s", gs.Name)
 	}
 
-	result, err := r.Client.CoreV1().Services(gs.Namespace).Create(ctx, service, metav1.CreateOptions{})
+	result, err := r.store.CreateService(ctx, service, metav1.CreateOptions{})
 	if err != nil {
 		if !k8serrors.IsAlreadyExists(err) {
 			r.recorder.RecordFailed(gs, ServiceKind, err)
