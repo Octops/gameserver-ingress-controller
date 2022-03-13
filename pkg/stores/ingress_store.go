@@ -16,6 +16,10 @@ type ingressStore struct {
 	informer networkinginformers.IngressInformer
 }
 
+func newIngressStore(client kubernetes.Interface, informer networkinginformers.IngressInformer) *ingressStore {
+	return &ingressStore{client: client, informer: informer}
+}
+
 func (s *ingressStore) CreateIngress(ctx context.Context, ingress *networkingv1.Ingress, options metav1.CreateOptions) (*networkingv1.Ingress, error) {
 	result, err := s.client.NetworkingV1().Ingresses(ingress.Namespace).Create(ctx, ingress, options)
 	if err != nil {

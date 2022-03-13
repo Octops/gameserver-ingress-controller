@@ -10,20 +10,21 @@ import (
 )
 
 type Store struct {
-	*ingressStore
 	*serviceStore
+	*ingressStore
 }
 
 func NewStore(ctx context.Context, client kubernetes.Interface) (*Store, error) {
 	factory := informers.NewSharedInformerFactory(client, 0)
-	ingresses := factory.Networking().V1().Ingresses()
 	services := factory.Core().V1().Services()
-
-	ingStore := &ingressStore{client: client, informer: ingresses}
-	svcStore := &serviceStore{client: client, informer: services}
-	store := &Store{ingStore, svcStore}
+	ingresses := factory.Networking().V1().Ingresses()
 
 	go factory.Start(ctx.Done())
+
+	store := &Store{
+		newServiceStore(client, services),
+		newIngressStore(client, ingresses),
+	}
 
 	if err := store.HasSynced(ctx); err != nil {
 		return nil, errors.Wrap(err, "store failed to sync cache")

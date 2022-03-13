@@ -16,6 +16,10 @@ type serviceStore struct {
 	informer coreinformers.ServiceInformer
 }
 
+func newServiceStore(client kubernetes.Interface, informer coreinformers.ServiceInformer) *serviceStore {
+	return &serviceStore{client: client, informer: informer}
+}
+
 func (s *serviceStore) CreateService(ctx context.Context, service *corev1.Service, options metav1.CreateOptions) (*corev1.Service, error) {
 	result, err := s.client.CoreV1().Services(service.Namespace).Create(ctx, service, options)
 	if err != nil {
