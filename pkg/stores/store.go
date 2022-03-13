@@ -7,6 +7,7 @@ import (
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+	"time"
 )
 
 type Store struct {
@@ -37,8 +38,11 @@ func (s *Store) HasSynced(ctx context.Context) error {
 	svcInformer := s.serviceStore.informer.Informer()
 	ingInformer := s.ingressStore.informer.Informer()
 
+	stopper, cancel := context.WithTimeout(ctx, time.Second*15)
+	defer cancel()
+
 	runtime.Logger().WithField("component", "store").Info("waiting for cache to sync")
-	if !cache.WaitForCacheSync(ctx.Done(), svcInformer.HasSynced, ingInformer.HasSynced) {
+	if !cache.WaitForCacheSync(stopper.Done(), svcInformer.HasSynced, ingInformer.HasSynced) {
 		return errors.New("timed out waiting for caches to sync")
 	}
 
