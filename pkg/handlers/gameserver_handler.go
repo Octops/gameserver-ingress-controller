@@ -7,11 +7,11 @@ import (
 	"github.com/Octops/gameserver-ingress-controller/internal/runtime"
 	"github.com/Octops/gameserver-ingress-controller/pkg/gameserver"
 	"github.com/Octops/gameserver-ingress-controller/pkg/reconcilers"
+	"github.com/Octops/gameserver-ingress-controller/pkg/record"
 	"github.com/Octops/gameserver-ingress-controller/pkg/stores"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/record"
 )
 
 type GameSeverEventHandler struct {
@@ -21,7 +21,7 @@ type GameSeverEventHandler struct {
 	ingressReconciler *reconcilers.IngressReconciler
 }
 
-func NewGameSeverEventHandler(store *stores.Store, recorder record.EventRecorder) *GameSeverEventHandler {
+func NewGameSeverEventHandler(store *stores.Store, recorder *record.EventRecorder) *GameSeverEventHandler {
 	return &GameSeverEventHandler{
 		logger:            runtime.Logger().WithField("component", "event_handler"),
 		serviceReconciler: reconcilers.NewServiceReconciler(store, recorder),

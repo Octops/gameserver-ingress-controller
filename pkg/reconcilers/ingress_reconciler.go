@@ -5,11 +5,11 @@ import (
 	"context"
 	"github.com/Octops/gameserver-ingress-controller/internal/runtime"
 	"github.com/Octops/gameserver-ingress-controller/pkg/gameserver"
+	"github.com/Octops/gameserver-ingress-controller/pkg/record"
 	"github.com/pkg/errors"
 	networkingv1 "k8s.io/api/networking/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/record"
 )
 
 type IngressStore interface {
@@ -19,13 +19,13 @@ type IngressStore interface {
 
 type IngressReconciler struct {
 	store    IngressStore
-	recorder *EventRecorder
+	recorder *record.EventRecorder
 }
 
-func NewIngressReconciler(store IngressStore, recorder record.EventRecorder) *IngressReconciler {
+func NewIngressReconciler(store IngressStore, recorder *record.EventRecorder) *IngressReconciler {
 	return &IngressReconciler{
 		store:    store,
-		recorder: NewEventRecorder(recorder),
+		recorder: recorder,
 	}
 }
 
@@ -44,7 +44,7 @@ func (r *IngressReconciler) Reconcile(ctx context.Context, gs *agonesv1.GameServ
 }
 
 func (r *IngressReconciler) reconcileNotFound(ctx context.Context, gs *agonesv1.GameServer) (*networkingv1.Ingress, error) {
-	r.recorder.RecordCreating(gs, IngressKind)
+	r.recorder.RecordCreating(gs, record.IngressKind)
 
 	mode := gameserver.GetIngressRoutingMode(gs)
 	issuer := gameserver.GetTLSCertIssuer(gs)
@@ -58,20 +58,20 @@ func (r *IngressReconciler) reconcileNotFound(ctx context.Context, gs *agonesv1.
 
 	ingress, err := newIngress(gs, opts...)
 	if err != nil {
-		r.recorder.RecordFailed(gs, IngressKind, err)
+		r.recorder.RecordFailed(gs, record.IngressKind, err)
 		return nil, errors.Wrapf(err, "failed to create ingress for gameserver %s", gs.Name)
 	}
 
 	result, err := r.store.CreateIngress(ctx, ingress, metav1.CreateOptions{})
 	if err != nil {
 		if !k8serrors.IsAlreadyExists(err) {
-			r.recorder.RecordFailed(gs, IngressKind, err)
+			r.recorder.RecordFailed(gs, record.IngressKind, err)
 			return nil, errors.Wrapf(err, "failed to push ingress %s for gameserver %s", ingress.Name, gs.Name)
 		}
 		runtime.Logger().Debug(err)
 	}
 
-	r.recorder.RecordSuccess(gs, IngressKind)
+	r.recorder.RecordSuccess(gs, record.IngressKind)
 	return result, nil
 }
 
