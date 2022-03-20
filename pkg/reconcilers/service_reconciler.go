@@ -5,38 +5,39 @@ import (
 	"context"
 	"github.com/Octops/gameserver-ingress-controller/internal/runtime"
 	"github.com/Octops/gameserver-ingress-controller/pkg/gameserver"
+	"github.com/Octops/gameserver-ingress-controller/pkg/record"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	v1 "k8s.io/client-go/informers/core/v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/record"
 )
 
-type ServiceReconciler struct {
-	Client   *kubernetes.Clientset
-	informer v1.ServiceInformer
-	recorder *EventRecorder
+type ServiceStore interface {
+	CreateService(ctx context.Context, service *corev1.Service, options metav1.CreateOptions) (*corev1.Service, error)
+	GetService(name, namespace string) (*corev1.Service, error)
 }
 
-func NewServiceReconciler(client *kubernetes.Clientset, informer v1.ServiceInformer, recorder record.EventRecorder) *ServiceReconciler {
+type ServiceReconciler struct {
+	store    ServiceStore
+	recorder *record.EventRecorder
+}
+
+func NewServiceReconciler(store ServiceStore, recorder *record.EventRecorder) *ServiceReconciler {
 	return &ServiceReconciler{
-		Client:   client,
-		informer: informer,
-		recorder: NewEventRecorder(recorder),
+		store:    store,
+		recorder: recorder,
 	}
 }
 
 func (r *ServiceReconciler) Reconcile(ctx context.Context, gs *agonesv1.GameServer) (*corev1.Service, error) {
-	service, err := r.informer.Lister().Services(gs.Namespace).Get(gs.Name)
+	service, err := r.store.GetService(gs.Name, gs.Namespace)
 	if err != nil {
-		if !k8serrors.IsNotFound(err) {
-			return &corev1.Service{}, errors.Wrapf(err, "error retrieving Service %s from namespace %s", gs.Name, gs.Namespace)
+		if k8serrors.IsNotFound(err) {
+			return r.reconcileNotFound(ctx, gs)
 		}
 
-		return r.reconcileNotFound(ctx, gs)
+		return &corev1.Service{}, errors.Wrapf(err, "error retrieving Service %s from namespace %s", gs.Name, gs.Namespace)
 	}
 
 	//TODO: Validate if details still match the GS info
@@ -44,24 +45,24 @@ func (r *ServiceReconciler) Reconcile(ctx context.Context, gs *agonesv1.GameServ
 }
 
 func (r *ServiceReconciler) reconcileNotFound(ctx context.Context, gs *agonesv1.GameServer) (*corev1.Service, error) {
-	r.recorder.RecordCreating(gs, ServiceKind)
+	r.recorder.RecordCreating(gs, record.ServiceKind)
 
 	service, err := newService(gs)
 	if err != nil {
-		r.recorder.RecordFailed(gs, ServiceKind, err)
+		r.recorder.RecordFailed(gs, record.ServiceKind, err)
 		return nil, errors.Wrapf(err, "failed to create service for gameserver %s", gs.Name)
 	}
 
-	result, err := r.Client.CoreV1().Services(gs.Namespace).Create(ctx, service, metav1.CreateOptions{})
+	result, err := r.store.CreateService(ctx, service, metav1.CreateOptions{})
 	if err != nil {
 		if !k8serrors.IsAlreadyExists(err) {
-			r.recorder.RecordFailed(gs, ServiceKind, err)
+			r.recorder.RecordFailed(gs, record.ServiceKind, err)
 			return nil, errors.Wrap(err, "failed to create service")
 		}
 		runtime.Logger().Debug(err)
 	}
 
-	r.recorder.RecordSuccess(gs, ServiceKind)
+	r.recorder.RecordSuccess(gs, record.ServiceKind)
 	return result, nil
 }
 

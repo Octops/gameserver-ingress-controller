@@ -1,22 +1,31 @@
-package reconcilers
+package record
 
 import (
 	agonesv1 "agones.dev/agones/pkg/apis/agones/v1"
 	"fmt"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/tools/record"
 )
 
 const (
 	IngressKind = "Ingress"
 	ServiceKind = "Service"
+
+	EventTypeNormal         string = "Normal"
+	EventTypeWarning               = "Warning"
+	ReasonReconcileFailed          = "Failed"
+	ReasonReconciled               = "Created"
+	ReasonReconcileCreating        = "Creating"
 )
 
-type EventRecorder struct {
-	recorder record.EventRecorder
+type Recorder interface {
+	Event(object runtime.Object, eventtype string, reason string, message string)
 }
 
-func NewEventRecorder(recorder record.EventRecorder) *EventRecorder {
+type EventRecorder struct {
+	recorder Recorder
+}
+
+func NewEventRecorder(recorder Recorder) *EventRecorder {
 	return &EventRecorder{recorder: recorder}
 }
 
