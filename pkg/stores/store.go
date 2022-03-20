@@ -37,14 +37,30 @@ func NewStore(ctx context.Context, client kubernetes.Interface) (*Store, error) 
 func (s *Store) HasSynced(ctx context.Context) error {
 	svcInformer := s.serviceStore.informer.Informer()
 	ingInformer := s.ingressStore.informer.Informer()
+	
+	f := func() error {
+		stopper, cancel := context.WithTimeout(ctx, time.Second*15)
+		defer cancel()
 
-	stopper, cancel := context.WithTimeout(ctx, time.Second*15)
-	defer cancel()
-
-	runtime.Logger().WithField("component", "store").Info("waiting for cache to sync")
-	if !cache.WaitForCacheSync(stopper.Done(), svcInformer.HasSynced, ingInformer.HasSynced) {
-		return errors.New("timed out waiting for caches to sync")
+		runtime.Logger().WithField("component", "store").Info("waiting for cache to sync")
+		if !cache.WaitForCacheSync(stopper.Done(), svcInformer.HasSynced, ingInformer.HasSynced) {
+			return errors.New("timed out waiting for caches to sync")
+		}
+		return nil
 	}
 
-	return nil
+	return withRetry(time.Second*5, 3, f)
+}
+
+func withRetry(interval time.Duration, maxRetries int, f func() error) error {
+	var err error
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		if err = f(); err == nil {
+			return nil
+		}
+		time.Sleep(interval)
+		continue
+	}
+
+	return errors.Wrapf(err, "retry failed after %d attempts", maxRetries)
 }
