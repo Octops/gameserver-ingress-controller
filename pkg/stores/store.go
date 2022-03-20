@@ -37,7 +37,7 @@ func NewStore(ctx context.Context, client kubernetes.Interface) (*Store, error) 
 func (s *Store) HasSynced(ctx context.Context) error {
 	svcInformer := s.serviceStore.informer.Informer()
 	ingInformer := s.ingressStore.informer.Informer()
-	
+
 	f := func() error {
 		stopper, cancel := context.WithTimeout(ctx, time.Second*15)
 		defer cancel()
@@ -49,16 +49,21 @@ func (s *Store) HasSynced(ctx context.Context) error {
 		return nil
 	}
 
-	return withRetry(time.Second*5, 3, f)
+	return withRetry(time.Second*5, 5, f)
 }
 
+// withRetry will wait for the interval before calling the f function for a max number of retries.
 func withRetry(interval time.Duration, maxRetries int, f func() error) error {
 	var err error
+	if maxRetries <= 0 {
+		maxRetries = 1
+	}
+
 	for attempt := 1; attempt <= maxRetries; attempt++ {
+		time.Sleep(interval)
 		if err = f(); err == nil {
 			return nil
 		}
-		time.Sleep(interval)
 		continue
 	}
 
