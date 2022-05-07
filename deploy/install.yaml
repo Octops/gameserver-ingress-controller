@@ -69,7 +69,7 @@ spec:
     spec:
       serviceAccountName: octops
       containers:
-        - image: octops/gameserver-ingress-controller:latest # Tag latest is not ideal, check the latest released tag and replace
+        - image: octops/gameserver-ingress-controller:0.1.7 # Latest release
           name: controller
           ports:
             - containerPort: 30235
