@@ -13,27 +13,27 @@ Players will be able to connect to a dedicated game server using a custom domain
 - Real-time games using websocket
 
 ## Known Limitations
-For the GameServer Controller to work, an Ingress Controller must be present in the cluster. The one that has been mostly adopted by the Kubernetes community is the NGINX Ingress Controller. However, it has been reported by the community that for games based on websocket the NGINX controller might not be a good fit due to the lost of connections between restarts. Check https://kubernetes.github.io/ingress-nginx/how-it-works/#when-a-reload-is-required for details.
+For the GameServer Controller to work, an Ingress Controller must be present in the cluster. The one that has been mostly adopted by the Kubernetes community is the NGINX Ingress Controller. However, it has been reported by the Agones' community that for games based on websocket the NGINX controller might not be a good fit due to the lost of connections between restarts. Check https://kubernetes.github.io/ingress-nginx/how-it-works/#when-a-reload-is-required for details.
 
 You can find more information on the original reported issue https://github.com/Octops/gameserver-ingress-controller/issues/21.
 
-For that reason the suggested Ingress Controller is - [HAProxy Ingress Controller](https://github.com/haproxytech/kubernetes-ingress).
+For that reason the suggested Ingress Controller is the [Contour Ingress Controller](https://projectcontour.io/). The controller is built on top of the https://www.envoyproxy.io/ service proxy. Envoy can handle flawlessly updates while game servers and ingress resources are reconciled by the Octops Controller. 
 
 ## Requirements
-The following components must be present on the Kubernetes cluster where the dedicated gameservers, and the controller will be hosted/deployed.
+The following components must be present on the Kubernetes cluster where the dedicated game servers, and the controller will be hosted/deployed.
 
 - [Agones](https://agones.dev/site)
   - https://agones.dev/site/docs/installation/install-agones/helm/
-- [HAProxy Ingress Controller](https://github.com/haproxytech/kubernetes-ingress)
+- [Contour Ingress Controller](https://projectcontour.io/)
   - Choose the appropriate setup depending on your environment, network topology and cloud provider. It will affect how the Ingress Service will be exposed to the internet.
-  - Update the DNS information to reflect the name/address of the load balancer pointing to the exposed service. You can find this information running `kubectl -n haproxy-controller get svc` and checking the column `EXTERNAL-IP`.
-  - The DNS record must be a `*` wildcard record. That will allow any gameserver to be placed under the desired domain automatically.
-  - [Install Instructions](https://www.haproxy.com/documentation/kubernetes/latest/installation/community/kubernetes/)
+  - Update the DNS information to reflect the name/address of the load balancer pointing to the exposed service. You can find this information running `kubectl -n projectcontour get svc` and checking the column `EXTERNAL-IP`.
+  - The DNS record must be a `*` wildcard record. That will allow any game server to be placed under the desired domain automatically.
+  - [Install Instructions](https://projectcontour.io/getting-started/#install-contour-and-envoy)
 - [Cert-Manager](https://cert-manager.io/docs/) - [optional if you are managing your own certificates]
   - Check https://cert-manager.io/docs/tutorials/acme/http-validation/ to understand which type of issuer you should use.
   - Make sure you have an `Issuer` that uses LetsEncrypt. You can find some examples on [deploy/cert-manager](deploy/cert-manager).
   - The name of the `Issuer` must be the same used on the Fleet annotation `octops.io/issuer-tls-name`.
-  - Install: ```$ kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.7.1/cert-manager.yaml```
+  - Install (**Check newer versions**): ```$ kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.7.1/cert-manager.yaml```
 
 # Configuration and Manifests
 
@@ -45,7 +45,7 @@ This configuration is used by the controller when creating the ingress resource 
 Routing Mode is a Fleet or GameServer scoped configuration. A Fleet defines the routing mode to all of its GameServers. For stand-alone GameServers, the routing mode is defined on its own manifest.
 
 ### Domain
-Every gameserver gets its own [FQDN](https://en.wikipedia.org/wiki/Fully_qualified_domain_name#Example). I.e.:`https://octops-2dnqv-jmqgp.example.com` or `https://octops-g6qkw-gnp2h.example.com`
+Every game server gets its own [FQDN](https://en.wikipedia.org/wiki/Fully_qualified_domain_name#Example). I.e.:`https://octops-2dnqv-jmqgp.example.com` or `https://octops-g6qkw-gnp2h.example.com`
 
 ```yaml
 # simplified Fleet manifest for Domain mode
@@ -59,6 +59,7 @@ spec:
   template:
     metadata:
       annotations:
+        octops-kubernetes.io/ingress.class: "contour" # required for Contour to handle ingress
         octops.io/gameserver-ingress-mode: "domain"
         octops.io/gameserver-ingress-domain: "example.com"
 ```
@@ -80,6 +81,7 @@ spec:
   template:
     metadata:
       annotations:
+        octops-kubernetes.io/ingress.class: "contour" # required for Contour to handle ingress
         octops.io/gameserver-ingress-mode: "path"
         octops.io/gameserver-ingress-fqdn: servers.example.com
 ```
@@ -87,9 +89,9 @@ spec:
 Check the [examples](examples) folder for a full Fleet manifest that uses the `Path` routing mode.
 
 ## How it works
-When a gameserver is created by Agones, either as part of a Fleet or a stand-alone deployment, the gameserver ingress controller will handle the provisioning of a couple of resources.
+When a game server is created by Agones, either as part of a Fleet or a stand-alone deployment, the Octops controller will handle the provisioning of a couple of resources.
 
-It will use the information present in the gameserver annotations and metadata to create the required Ingress and dependencies.
+It will use the information present in the game server annotations and metadata to create the required Ingress and dependencies.
 
 Below is an example of a manifest that deploys a Fleet using the `Domain` routing mode:
 ```yaml
@@ -109,6 +111,7 @@ spec:
         cluster: gke-1.22
         region: us-east-1
       annotations:
+        octops-kubernetes.io/ingress.class: "contour" # required for Contour to handle ingress
         # Required annotation used by the controller
         octops.io/gameserver-ingress-mode: "domain"
         octops.io/gameserver-ingress-domain: "example.com"
@@ -143,29 +146,29 @@ https://octops-2dnqv-fr8tx.example.com/ ⇢ octops-2dnqv-fr8tx:7779
 ```
 
 ## Conventions
-The table below shows how the information from the gameserver is used to compose the ingress settings.
+The table below shows how the information from the game server is used to compose the ingress settings.
 
-| Gameserver                          | Ingress       | 
-| ----------------------------------- |:-------------:|
-| name                                | [hostname, path] | 
-| annotation: octops.io/gameserver-ingress-mode | [domain, path] |
-| annotation: octops.io/gameserver-ingress-domain | base domain |
-|annotation: octops.io/gameserver-ingress-fqdn | global domain| 
-|annotation: octops.io/terminate-tls | terminate TLS |
-|annotation: octops.io/issuer-tls-name| name of the issuer |
-|annotation: octops-[custom-annotation] | custom-annotation |
-|annotation: octops.io/tls-secret-name | custom ingress secret |
+| Game Server                                     |           Ingress           | 
+|-------------------------------------------------|:---------------------------:|
+| name                                            |      [hostname, path]       | 
+| annotation: octops.io/gameserver-ingress-mode   |       [domain, path]        |
+| annotation: octops.io/gameserver-ingress-domain |         base domain         |
+| annotation: octops.io/gameserver-ingress-fqdn   |        global domain        | 
+| annotation: octops.io/terminate-tls             | terminate TLS (true, false) |
+| annotation: octops.io/issuer-tls-name           |     name of the issuer      |
+| annotation: octops-[custom-annotation]          |      custom-annotation      |
+| annotation: octops.io/tls-secret-name           |    custom ingress secret    |
 
 ### Custom Annotations
-Any Fleet or GameServer resource annotation that contains the prefix `octops-` will be added down to the Ingress resourced crated by the controller.
+Any Fleet or GameServer resource annotation that contains the prefix `octops-` will be added down to the Ingress resource crated by the Octops controller.
 
-`octops-haproxy.org/server-ssl` :`true`
+`octops-projectcontour.io/websocket-routes`: `/`
 
 Will be added to the ingress in the following format:
 
-`haproxy.org/server-ssl` :`true`
+`projectcontour.io/websocket-routes`: `/`
 
-**Any annotation can be used. It is not restricted to the [HAProxy controller annotations](https://www.haproxy.com/documentation/kubernetes/latest/configuration/ingress/)**
+**Any annotation can be used. It is not restricted to the [Contour controller annotations](https://projectcontour.io/docs/main/config/annotations/)**.
 
 `octops-my-custom-annotations`: `my-custom-value` will be passed to the Ingress resource as:
 
@@ -175,7 +178,7 @@ Multiline is also supported, I.e.:
 
 ```yaml
 annotations:
-    octops-haproxy.org/backend-config-snippet: |
+    octops-example.com/backend-config-snippet: |
       http-send-name-header x-dst-server
       stick-table type string len 32 size 100k expire 30m
       stick on req.cook(sessionid)
@@ -185,7 +188,7 @@ annotations:
 
 https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
  
-## Fleet and GameServer Manifests
+## Fleet and GameServer Resource Manifests
 
 - **octops.io/gameserver-ingress-mode:** defines the ingress routing mode, possible values are: domain or path.
 - **octops.io/gameserver-ingress-domain:** name of the domain to be used when creating the ingress. This is the public domain that players will use to reach out to the dedicated game server.
@@ -198,6 +201,8 @@ The same configuration works for Fleets and GameServers. Add the following annot
 ```yaml
 # Fleet annotations using ingress routing mode: domain
 annotations:
+  octops-kubernetes.io/ingress.class: "contour" # required for Contour to handle ingress
+  octops-projectcontour.io/websocket-routes: "/" # required by contour to enable websocket
   octops.io/gameserver-ingress-mode: "domain"
   octops.io/gameserver-ingress-domain: "example.com"
   octops.io/terminate-tls: "true"
@@ -207,6 +212,8 @@ annotations:
 ```yaml
 # Fleet annotations using ingress routing mode: path
 annotations:
+  octops-kubernetes.io/ingress.class: "contour" # required for Contour to handle ingress
+  octops-projectcontour.io/websocket-routes: "/" # required by contour to enable websocket
   octops.io/gameserver-ingress-mode: "path"
   octops.io/gameserver-ingress-fqdn: "servers.example.com"
   octops.io/terminate-tls: "true"
@@ -220,11 +227,11 @@ octops.io/issuer-tls-name: "selfsigned-issuer"
 ```
 
 # Clean up and GameServer Lifecycle
-Every resource created by the octops ingress controller is attached to the gameserver itself. That means, when a gameserver is deleted from the cluster all its dependencies will be cleaned up by the Kubernetes garbage collector.
+Every resource created by the Octops controller is attached to the game server itself. That means, when a game server is deleted from the cluster all its dependencies will be cleaned up by the Kubernetes garbage collector.
 
 **Manual deletion of services and ingresses is not required by the operator of the cluster.**
 
-# Deploy the Gameserver Ingress Controller
+# Deploy the Octops Controller
 
 Deploy the controller running:
 ```bash
@@ -261,7 +268,7 @@ The controller will record errors if a resource can't be created.
 0s Warning Failed  gameserver/octops-domain-zxt2q-6xl6r  Failed to create Ingress for gameserver default/octops-domain-zxt2q-6xl6r: ingress routing mode domain requires the annotation octops.io/gameserver-ingress-domain to be present on octops-domain-zxt2q-6xl6r, check your Fleet or GameServer manifest.
 ```
 
-Alternatively, you can check events for a particular gameserver running
+Alternatively, you can check events for a particular game server running
 ```
 $ kubectl describe gameserver [gameserver-name]
 ...
@@ -283,7 +290,7 @@ Events:
 
 You can find examples of different issuers on the [deploy/cert-manager](deploy/cert-manager) folder. Make sure you update the information to reflect your environment before applying those manifests.
 
-For a quick test you can use the [examples/fleet.yaml](examples/fleet.yaml). This manifest will deploy a simple http gameserver that keeps the health check and changes the state to "Ready".
+For a quick test you can use the [examples/fleet.yaml](examples/fleet.yaml). This manifest will deploy a simple http game server that keeps the health check and changes the state to "Ready".
 ```bash
 $ kubectl apply -f examples/fleet-domain.yaml
 
@@ -308,7 +315,9 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   labels:
-    agones.dev/gameserver: octops-tl6hf-fnmgd
+    agones.dev/gameserver: "octops-tl6hf-fnmgd"
+    kubernetes.io/ingress.class: "contour"
+    projectcontour.io/websocket-routes: "/"
   name: octops-tl6hf-fnmgd
   namespace: default
 spec:
@@ -331,9 +340,9 @@ spec:
 
 # Demo
 
-To demonstrate how the `gameserver-ingress-controller` workers, you can deploy a fleet of Quake 3 servers (QuakeKube) that can be managed by Agones.
+To demonstrate how the Octops controller workers, you can deploy a fleet of Quake 3 servers (QuakeKube) that can be managed by Agones.
 
-> QuakeKube is a Kubernetes-ified version of QuakeJS that runs a dedicated Quake 3 server in a Kubernetes Deployment, and then allow clients to connect via QuakeJS in the browser.
+> QuakeKube is a Kubernetes-fied version of QuakeJS that runs a dedicated Quake 3 server in a Kubernetes Deployment, and then allow clients to connect via QuakeJS in the browser.
 
 The source code of the project that integrates the game with Agones can be found on https://github.com/Octops/quake-kube. 
 
