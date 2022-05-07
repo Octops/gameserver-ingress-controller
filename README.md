@@ -1,7 +1,7 @@
-# Gameserver Ingress Controller
+# Octops Game Server Ingress Controller
 Automatic Ingress configuration for Game Servers managed by [Agones](https://agones.dev/site/).
 
-The Gameserver Ingress Controller leverages the power of the [Kubernetes Ingress Controller](https://kubernetes.io/docs/concepts/services-networking/ingress-controllers/) to bring inbound traffic to dedicated game servers.
+The Octops Controller leverages the power of the [Kubernetes Ingress Controller](https://kubernetes.io/docs/concepts/services-networking/ingress-controllers/) to bring inbound traffic to dedicated game servers.
 
 Players will be able to connect to a dedicated game server using a custom domain and a secure connection. 
 
@@ -13,11 +13,13 @@ Players will be able to connect to a dedicated game server using a custom domain
 - Real-time games using websocket
 
 ## Known Limitations
-For the GameServer Controller to work, an Ingress Controller must be present in the cluster. The one that has been mostly adopted by the Kubernetes community is the NGINX Ingress Controller. However, it has been reported by the Agones' community that for games based on websocket the NGINX controller might not be a good fit due to the lost of connections between restarts. Check https://kubernetes.github.io/ingress-nginx/how-it-works/#when-a-reload-is-required for details.
+For the Octops Controller to work, an Ingress Controller must be present in the cluster. The one that has been mostly adopted by the Kubernetes community is the NGINX Ingress Controller. However, it has been reported by the Agones' community that for games based on websocket the NGINX controller might not be a good fit due to the lost of connections between restarts. Check https://kubernetes.github.io/ingress-nginx/how-it-works/#when-a-reload-is-required for details.
 
 You can find more information on the original reported issue https://github.com/Octops/gameserver-ingress-controller/issues/21.
 
-For that reason the suggested Ingress Controller is the [Contour Ingress Controller](https://projectcontour.io/). The controller is built on top of the https://www.envoyproxy.io/ service proxy. Envoy can handle flawlessly updates while game servers and ingress resources are reconciled by the Octops Controller. 
+The connection drop behaviour is also present on alternatives like the [HAProxy Ingress Controller](https://github.com/haproxytech/kubernetes-ingress).
+
+For that reasons the suggested Ingress Controller is the [Contour Ingress Controller](https://projectcontour.io/). The controller is built on top of the https://www.envoyproxy.io/ service proxy. Envoy can handle flawlessly updates while game servers and ingress resources are reconciled by the Octops Controller. 
 
 ## Requirements
 The following components must be present on the Kubernetes cluster where the dedicated game servers, and the controller will be hosted/deployed.
@@ -28,21 +30,21 @@ The following components must be present on the Kubernetes cluster where the ded
   - Choose the appropriate setup depending on your environment, network topology and cloud provider. It will affect how the Ingress Service will be exposed to the internet.
   - Update the DNS information to reflect the name/address of the load balancer pointing to the exposed service. You can find this information running `kubectl -n projectcontour get svc` and checking the column `EXTERNAL-IP`.
   - The DNS record must be a `*` wildcard record. That will allow any game server to be placed under the desired domain automatically.
-  - [Install Instructions](https://projectcontour.io/getting-started/#install-contour-and-envoy)
+  - [Contour Install Instructions](https://projectcontour.io/getting-started/#install-contour-and-envoy)
 - [Cert-Manager](https://cert-manager.io/docs/) - [optional if you are managing your own certificates]
   - Check https://cert-manager.io/docs/tutorials/acme/http-validation/ to understand which type of issuer you should use.
   - Make sure you have an `Issuer` that uses LetsEncrypt. You can find some examples on [deploy/cert-manager](deploy/cert-manager).
   - The name of the `Issuer` must be the same used on the Fleet annotation `octops.io/issuer-tls-name`.
-  - Install (**Check newer versions**): ```$ kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.7.1/cert-manager.yaml```
+  - Install (**Check for newer versions**): ```$ kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.7.1/cert-manager.yaml```
 
 # Configuration and Manifests
 
 ## Ingress Routing Mode
-The controller supports 2 different types of ingress routing mode: Domain and Path.
+The Octops controller supports 2 different types of ingress routing mode: Domain and Path.
 
 This configuration is used by the controller when creating the ingress resource within the Kubernetes cluster.
 
-Routing Mode is a Fleet or GameServer scoped configuration. A Fleet defines the routing mode to all of its GameServers. For stand-alone GameServers, the routing mode is defined on its own manifest.
+Routing Mode is a Fleet or GameServer scoped configuration. A Fleet manifest defines the routing mode to all of its GameServers. For stand-alone GameServers, the routing mode is defined on its own manifest.
 
 ### Domain
 Every game server gets its own [FQDN](https://en.wikipedia.org/wiki/Fully_qualified_domain_name#Example). I.e.:`https://octops-2dnqv-jmqgp.example.com` or `https://octops-g6qkw-gnp2h.example.com`
@@ -126,6 +128,7 @@ spec:
 
 Deployed GameServers:
 ```bash
+# kubectl [-n yournamespace] get gs
 NAME                 STATE   ADDRESS         PORT   NODE     AGE
 octops-2dnqv-jmqgp   Ready   36.23.134.23    7437   node-1   10m
 octops-2dnqv-d9nxd   Ready   36.23.134.23    7323   node-1   10m
@@ -134,6 +137,7 @@ octops-2dnqv-fr8tx   Ready   32.76.142.33    7779   node-2   10m
 
 Ingresses created by the controller:
 ```bash
+# kubectl [-n yournamespace] get ingress
 NAME                 HOSTS                           ADDRESS         PORTS     AGE
 octops-2dnqv-jmqgp   octops-2dnqv-jmqgp.example.com                   80, 443   4m48s
 octops-2dnqv-d9nxd   octops-2dnqv-d9nxd.example.com                   80, 443   4m46s
@@ -142,7 +146,7 @@ octops-2dnqv-fr8tx   octops-2dnqv-fr8tx.example.com                   80, 443   
 
 Proxy Mapping - Ingress x GameServer 
 ```bash
-
+# The game server public domain uses the omitted 443/HTTPS port instead of the Agones port range 7000-8000
 https://octops-2dnqv-jmqgp.example.com/ ⇢ octops-2dnqv-jmqgp:7437
 https://octops-2dnqv-d9nxd.example.com/ ⇢ octops-2dnqv-d9nxd:7323
 https://octops-2dnqv-fr8tx.example.com/ ⇢ octops-2dnqv-fr8tx:7779
@@ -234,11 +238,13 @@ Every resource created by the Octops controller is attached to the game server i
 
 **Manual deletion of services and ingresses is not required by the operator of the cluster.**
 
-# Deploy the Octops Controller
+# How to install the Octops Controller
 
 Deploy the controller running:
 ```bash
 $ kubectl apply -f deploy/install.yaml
+or
+$ kubectl apply -f https://github.com/Octops/gameserver-ingress-controller/blob/main/deploy/install.yaml
 ```
 
 Check the deployment:
