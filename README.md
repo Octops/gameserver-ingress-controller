@@ -60,6 +60,7 @@ spec:
     metadata:
       annotations:
         octops-kubernetes.io/ingress.class: "contour" # required for Contour to handle ingress
+        octops-projectcontour.io/websocket-routes: "/" # required for Contour to enable websocket
         octops.io/gameserver-ingress-mode: "domain"
         octops.io/gameserver-ingress-domain: "example.com"
 ```
@@ -82,6 +83,7 @@ spec:
     metadata:
       annotations:
         octops-kubernetes.io/ingress.class: "contour" # required for Contour to handle ingress
+        octops-projectcontour.io/websocket-routes: "/" # required for Contour to enable websocket
         octops.io/gameserver-ingress-mode: "path"
         octops.io/gameserver-ingress-fqdn: servers.example.com
 ```
@@ -112,6 +114,7 @@ spec:
         region: us-east-1
       annotations:
         octops-kubernetes.io/ingress.class: "contour" # required for Contour to handle ingress
+        octops-projectcontour.io/websocket-routes: "/" # required for Contour to enable websocket
         # Required annotation used by the controller
         octops.io/gameserver-ingress-mode: "domain"
         octops.io/gameserver-ingress-domain: "example.com"
@@ -202,7 +205,7 @@ The same configuration works for Fleets and GameServers. Add the following annot
 # Fleet annotations using ingress routing mode: domain
 annotations:
   octops-kubernetes.io/ingress.class: "contour" # required for Contour to handle ingress
-  octops-projectcontour.io/websocket-routes: "/" # required by contour to enable websocket
+  octops-projectcontour.io/websocket-routes: "/" # required for Contour to enable websocket
   octops.io/gameserver-ingress-mode: "domain"
   octops.io/gameserver-ingress-domain: "example.com"
   octops.io/terminate-tls: "true"
@@ -213,7 +216,7 @@ annotations:
 # Fleet annotations using ingress routing mode: path
 annotations:
   octops-kubernetes.io/ingress.class: "contour" # required for Contour to handle ingress
-  octops-projectcontour.io/websocket-routes: "/" # required by contour to enable websocket
+  octops-projectcontour.io/websocket-routes: "/" # required for Contour to enable websocket
   octops.io/gameserver-ingress-mode: "path"
   octops.io/gameserver-ingress-fqdn: "servers.example.com"
   octops.io/terminate-tls: "true"

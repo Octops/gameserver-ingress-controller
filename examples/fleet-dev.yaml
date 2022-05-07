@@ -30,7 +30,7 @@ spec:
 #        octops.io/gameserver-ingress-mode: "domain"
 #        octops.io/gameserver-ingress-domain: "example.com"
         octops-kubernetes.io/ingress.class: "contour" # required for Contour to handle ingress
-          octops-projectcontour.io/websocket-routes: "/" # required by contour to enable websocket
+        octops-projectcontour.io/websocket-routes: "/" # required for Contour to enable websocket
         octops.io/gameserver-ingress-mode: "path"
         octops.io/gameserver-ingress-fqdn: "servers.example.com"
     spec:
