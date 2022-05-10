@@ -30,11 +30,9 @@ func NewGameSeverEventHandler(store *stores.Store, recorder *record.EventRecorde
 }
 
 func (h *GameSeverEventHandler) OnAdd(obj interface{}) error {
-	h.logger.WithField("event", "added").Infof("%s", obj.(*agonesv1.GameServer).Name)
-
 	gs := gameserver.FromObject(obj)
 
-	if err := h.Reconcile(gs); err != nil {
+	if err := h.Reconcile(h.logger.WithField("event", "added"), gs); err != nil {
 		h.logger.Error(err)
 	}
 
@@ -42,11 +40,9 @@ func (h *GameSeverEventHandler) OnAdd(obj interface{}) error {
 }
 
 func (h *GameSeverEventHandler) OnUpdate(_ interface{}, newObj interface{}) error {
-	h.logger.WithField("event", "updated").Infof("%s", newObj.(*agonesv1.GameServer).Name)
-
 	gs := gameserver.FromObject(newObj)
 
-	if err := h.Reconcile(gs); err != nil {
+	if err := h.Reconcile(h.logger.WithField("event", "updated"), gs); err != nil {
 		h.logger.Error(err)
 	}
 
@@ -54,20 +50,29 @@ func (h *GameSeverEventHandler) OnUpdate(_ interface{}, newObj interface{}) erro
 }
 
 func (h *GameSeverEventHandler) OnDelete(obj interface{}) error {
-	h.logger.WithField("event", "deleted").Infof("%s", obj.(*agonesv1.GameServer).Name)
+	gs := obj.(*agonesv1.GameServer)
+	h.logger.WithField("event", "deleted").Infof("%s/%s", gs.Namespace, gs.Name)
 
 	return nil
 }
 
-func (h *GameSeverEventHandler) Reconcile(gs *agonesv1.GameServer) error {
+func (h *GameSeverEventHandler) Reconcile(logger *logrus.Entry, gs *agonesv1.GameServer) error {
 	if _, ok := gameserver.HasAnnotation(gs, gameserver.OctopsAnnotationIngressMode); !ok {
-		h.logger.Debugf("skipping gameserver %s/%s, annotation %s not present", gs.Namespace, gs.Name, gameserver.OctopsAnnotationIngressMode)
+		logger.Infof("skipping %s/%s, annotation %s not present", gs.Namespace, gs.Name, gameserver.OctopsAnnotationIngressMode)
 		return nil
 	}
 
-	if gameserver.IsReady(gs) == false {
-		msg := fmt.Sprintf("gameserver %s/%s not ready", gs.Namespace, gs.Name)
-		h.logger.Info(msg)
+	//If a game server is in a Shutdown state it will not trigger reconcile
+	if gameserver.IsShutdown(gs) {
+		logger.WithField("event", "shutdown").Infof("%s/%s", gs.Namespace, gs.Name)
+
+		return nil
+	}
+
+	//Only Scheduled, ReadyState and Ready game server states will trigger reconcile
+	if gameserver.MustReconcile(gs) == false {
+		msg := fmt.Sprintf("%s/%s/%s not reconciled, waiting for Scheduled, ReadyState or Ready state", gs.Namespace, gs.Name, gs.Status.State)
+		logger.Info(msg)
 
 		return nil
 	}
@@ -82,6 +87,9 @@ func (h *GameSeverEventHandler) Reconcile(gs *agonesv1.GameServer) error {
 	if err != nil {
 		return errors.Wrapf(err, "failed to reconcile ingress %s/%s", gs.Namespace, gs.Name)
 	}
+
+	msg := fmt.Sprintf("%s/%s/%s reconciled", gs.Namespace, gs.Name, gs.Status.State)
+	logger.Info(msg)
 
 	return nil
 }

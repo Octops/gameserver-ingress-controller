@@ -61,12 +61,27 @@ func HasAnnotation(gs *agonesv1.GameServer, annotation string) (string, bool) {
 	return "", false
 }
 
-func IsReady(gs *agonesv1.GameServer) bool {
+func IsShutdown(gs *agonesv1.GameServer) bool {
 	if gs == nil {
 		return false
 	}
 
-	return gs.Status.State == agonesv1.GameServerStateReady
+	return gs.Status.State == agonesv1.GameServerStateShutdown
+}
+
+func MustReconcile(gs *agonesv1.GameServer) bool {
+	if gs == nil {
+		return false
+	}
+
+	switch gs.Status.State {
+	case agonesv1.GameServerStateScheduled,
+		agonesv1.GameServerStateRequestReady,
+		agonesv1.GameServerStateReady:
+		return true
+	}
+
+	return false
 }
 
 func GetIngressRoutingMode(gs *agonesv1.GameServer) IngressRoutingMode {
