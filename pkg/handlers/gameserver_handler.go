@@ -30,11 +30,9 @@ func NewGameSeverEventHandler(store *stores.Store, recorder *record.EventRecorde
 }
 
 func (h *GameSeverEventHandler) OnAdd(obj interface{}) error {
-	h.logger.WithField("event", "added").Infof("%s", obj.(*agonesv1.GameServer).Name)
-
 	gs := gameserver.FromObject(obj)
 
-	if err := h.Reconcile(gs); err != nil {
+	if err := h.Reconcile(h.logger.WithField("event", "added"), gs); err != nil {
 		h.logger.Error(err)
 	}
 
@@ -42,11 +40,9 @@ func (h *GameSeverEventHandler) OnAdd(obj interface{}) error {
 }
 
 func (h *GameSeverEventHandler) OnUpdate(_ interface{}, newObj interface{}) error {
-	h.logger.WithField("event", "updated").Infof("%s", newObj.(*agonesv1.GameServer).Name)
-
 	gs := gameserver.FromObject(newObj)
 
-	if err := h.Reconcile(gs); err != nil {
+	if err := h.Reconcile(h.logger.WithField("event", "updated"), gs); err != nil {
 		h.logger.Error(err)
 	}
 
@@ -54,7 +50,8 @@ func (h *GameSeverEventHandler) OnUpdate(_ interface{}, newObj interface{}) erro
 }
 
 func (h *GameSeverEventHandler) OnDelete(obj interface{}) error {
-	h.logger.WithField("event", "deleted").Infof("%s", obj.(*agonesv1.GameServer).Name)
+	gs := obj.(*agonesv1.GameServer)
+	h.logger.WithField("event", "deleted").Infof("%s/%s", gs.Namespace, gs.Name)
 
 	return nil
 }
