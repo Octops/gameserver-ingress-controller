@@ -58,7 +58,7 @@ func (h *GameSeverEventHandler) OnDelete(obj interface{}) error {
 
 func (h *GameSeverEventHandler) Reconcile(logger *logrus.Entry, gs *agonesv1.GameServer) error {
 	if _, ok := gameserver.HasAnnotation(gs, gameserver.OctopsAnnotationIngressMode); !ok {
-		logger.Infof("skipping gameserver %s/%s, annotation %s not present", gs.Namespace, gs.Name, gameserver.OctopsAnnotationIngressMode)
+		logger.Infof("skipping %s/%s, annotation %s not present", gs.Namespace, gs.Name, gameserver.OctopsAnnotationIngressMode)
 		return nil
 	}
 
