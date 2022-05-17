@@ -31,7 +31,7 @@ type GameServerController struct {
 	manager.Manager
 }
 
-func NewGameServerController(mgr manager.Manager, eventHandler handlers.EventHandler, options Options) (*GameServerController, error) {
+func NewGameServerController(ctx context.Context, mgr manager.Manager, eventHandler handlers.EventHandler, options Options) (*GameServerController, error) {
 	optFor := reflect.TypeOf(options.For).Elem().String()
 	logger := runtime.Logger().WithFields(logrus.Fields{
 		"component": "controller",
@@ -70,12 +70,13 @@ func NewGameServerController(mgr manager.Manager, eventHandler handlers.EventHan
 				//TODO: Investigate if controller require this Done. Keeping doubles the reconcile calls
 				//defer limitingInterface.Done(request)
 
-				if err := eventHandler.OnAdd(createEvent.Object); err != nil {
+				if err := eventHandler.OnAdd(ctx, createEvent.Object); err != nil {
 					limitingInterface.AddRateLimited(request)
 					return
 				}
 
 				limitingInterface.Forget(request)
+				limitingInterface.Done(request)
 			},
 			UpdateFunc: func(updateEvent event.UpdateEvent, limitingInterface workqueue.RateLimitingInterface) {
 				request := reconcile.Request{
@@ -88,12 +89,13 @@ func NewGameServerController(mgr manager.Manager, eventHandler handlers.EventHan
 				//TODO: Investigate if controller require this Done. Keeping doubles the reconcile calls
 				//defer limitingInterface.Done(request)
 
-				if err := eventHandler.OnUpdate(updateEvent.ObjectOld, updateEvent.ObjectNew); err != nil {
+				if err := eventHandler.OnUpdate(ctx, updateEvent.ObjectOld, updateEvent.ObjectNew); err != nil {
 					limitingInterface.AddRateLimited(request)
 					return
 				}
 
 				limitingInterface.Forget(request)
+				limitingInterface.Done(request)
 			},
 			DeleteFunc: func(deleteEvent event.DeleteEvent, limitingInterface workqueue.RateLimitingInterface) {
 
@@ -104,12 +106,13 @@ func NewGameServerController(mgr manager.Manager, eventHandler handlers.EventHan
 					},
 				}
 
-				if err := eventHandler.OnDelete(deleteEvent.Object); err != nil {
+				if err := eventHandler.OnDelete(ctx, deleteEvent.Object); err != nil {
 					limitingInterface.AddRateLimited(request)
 					return
 				}
 
 				limitingInterface.Forget(request)
+				limitingInterface.Done(request)
 			},
 		}).
 		Complete(&reconcilers.Reconciler{
