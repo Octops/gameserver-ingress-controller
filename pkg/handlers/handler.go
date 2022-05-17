@@ -1,7 +1,9 @@
 package handlers
 
+import "context"
+
 type EventHandler interface {
-	OnAdd(obj interface{}) error
-	OnUpdate(oldObj interface{}, newObj interface{}) error
-	OnDelete(obj interface{}) error
+	OnAdd(ctx context.Context, obj interface{}) error
+	OnUpdate(ctx context.Context, oldObj interface{}, newObj interface{}) error
+	OnDelete(ctx context.Context, obj interface{}) error
 }

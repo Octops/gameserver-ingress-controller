@@ -50,10 +50,12 @@ to quickly create a Cobra application.`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
-		ctx, cancel := context.WithCancel(context.Background())
-		runtime.SetupSignal(cancel)
+		ctx, stop := runtime.SetupSignal(context.Background())
+		defer stop()
 
-		app.StartController(ctx, app.Config{
+		logger := runtime.NewLogger(verbose)
+
+		app.StartController(ctx, logger, app.Config{
 			Kubeconfig:             kubeconfig,
 			SyncPeriod:             syncPeriod,
 			Port:                   webhookPort,

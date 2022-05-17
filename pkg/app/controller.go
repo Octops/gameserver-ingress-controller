@@ -4,7 +4,6 @@ import (
 	agonesv1 "agones.dev/agones/pkg/apis/agones/v1"
 	"context"
 	"fmt"
-	"github.com/Octops/gameserver-ingress-controller/internal/runtime"
 	"github.com/Octops/gameserver-ingress-controller/pkg/controller"
 	"github.com/Octops/gameserver-ingress-controller/pkg/handlers"
 	"github.com/Octops/gameserver-ingress-controller/pkg/k8sutil"
@@ -25,10 +24,7 @@ type Config struct {
 	MetricsBindAddress     string
 }
 
-func StartController(ctx context.Context, config Config) error {
-	//TODO: Pass logger as argument
-	logger := runtime.NewLogger(config.Verbose)
-
+func StartController(ctx context.Context, logger *logrus.Entry, config Config) error {
 	duration, err := time.ParseDuration(config.SyncPeriod)
 	if err != nil {
 		withFatal(logger, err, fmt.Sprintf("error parsing sync-period flag: %s", config.SyncPeriod))
@@ -58,7 +54,7 @@ func StartController(ctx context.Context, config Config) error {
 
 	recorder := mgr.GetEventRecorderFor("gameserver-ingress-controller")
 	handler := handlers.NewGameSeverEventHandler(store, record.NewEventRecorder(recorder))
-	ctrl, err := controller.NewGameServerController(mgr, handler, controller.Options{
+	ctrl, err := controller.NewGameServerController(ctx, mgr, handler, controller.Options{
 		For: &agonesv1.GameServer{},
 	})
 

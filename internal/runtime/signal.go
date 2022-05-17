@@ -4,14 +4,8 @@ import (
 	"context"
 	"os"
 	"os/signal"
-	"syscall"
 )
 
-func SetupSignal(cancel context.CancelFunc) {
-	go func() {
-		termChan := make(chan os.Signal)
-		signal.Notify(termChan, syscall.SIGINT, syscall.SIGTERM)
-		<-termChan
-		cancel()
-	}()
+func SetupSignal(ctx context.Context) (context.Context, context.CancelFunc) {
+	return signal.NotifyContext(ctx, os.Interrupt)
 }

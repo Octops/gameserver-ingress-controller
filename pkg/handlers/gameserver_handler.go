@@ -29,34 +29,34 @@ func NewGameSeverEventHandler(store *stores.Store, recorder *record.EventRecorde
 	}
 }
 
-func (h *GameSeverEventHandler) OnAdd(obj interface{}) error {
+func (h *GameSeverEventHandler) OnAdd(ctx context.Context, obj interface{}) error {
 	gs := gameserver.FromObject(obj)
 
-	if err := h.Reconcile(h.logger.WithField("event", "added"), gs); err != nil {
+	if err := h.Reconcile(ctx, h.logger.WithField("event", "added"), gs); err != nil {
 		h.logger.Error(err)
 	}
 
 	return nil
 }
 
-func (h *GameSeverEventHandler) OnUpdate(_ interface{}, newObj interface{}) error {
+func (h *GameSeverEventHandler) OnUpdate(ctx context.Context, _ interface{}, newObj interface{}) error {
 	gs := gameserver.FromObject(newObj)
 
-	if err := h.Reconcile(h.logger.WithField("event", "updated"), gs); err != nil {
+	if err := h.Reconcile(ctx, h.logger.WithField("event", "updated"), gs); err != nil {
 		h.logger.Error(err)
 	}
 
 	return nil
 }
 
-func (h *GameSeverEventHandler) OnDelete(obj interface{}) error {
+func (h *GameSeverEventHandler) OnDelete(_ context.Context, obj interface{}) error {
 	gs := obj.(*agonesv1.GameServer)
 	h.logger.WithField("event", "deleted").Infof("%s/%s", gs.Namespace, gs.Name)
 
 	return nil
 }
 
-func (h *GameSeverEventHandler) Reconcile(logger *logrus.Entry, gs *agonesv1.GameServer) error {
+func (h *GameSeverEventHandler) Reconcile(ctx context.Context, logger *logrus.Entry, gs *agonesv1.GameServer) error {
 	if _, ok := gameserver.HasAnnotation(gs, gameserver.OctopsAnnotationIngressMode); !ok {
 		logger.Infof("skipping %s/%s, annotation %s not present", gs.Namespace, gs.Name, gameserver.OctopsAnnotationIngressMode)
 		return nil
@@ -77,7 +77,6 @@ func (h *GameSeverEventHandler) Reconcile(logger *logrus.Entry, gs *agonesv1.Gam
 		return nil
 	}
 
-	ctx := context.TODO()
 	_, err := h.serviceReconciler.Reconcile(ctx, gs)
 	if err != nil {
 		return errors.Wrapf(err, "failed to reconcile service %s/%s", gs.Namespace, gs.Name)
@@ -87,6 +86,8 @@ func (h *GameSeverEventHandler) Reconcile(logger *logrus.Entry, gs *agonesv1.Gam
 	if err != nil {
 		return errors.Wrapf(err, "failed to reconcile ingress %s/%s", gs.Namespace, gs.Name)
 	}
+
+	//Set GameServer label octops.io/ingress-ready: true|false
 
 	msg := fmt.Sprintf("%s/%s/%s reconciled", gs.Namespace, gs.Name, gs.Status.State)
 	logger.Info(msg)
