@@ -28,7 +28,7 @@ func NewStore(ctx context.Context, client kubernetes.Interface) (*Store, error) 
 	}
 
 	if err := store.HasSynced(ctx); err != nil {
-		return nil, errors.Wrap(err, "store failed to sync cache")
+		return nil, errors.Wrap(err, "store failed to sync K8S cache")
 	}
 
 	return store, nil
@@ -42,9 +42,9 @@ func (s *Store) HasSynced(ctx context.Context) error {
 		stopper, cancel := context.WithTimeout(ctx, time.Second*15)
 		defer cancel()
 
-		runtime.Logger().WithField("component", "store").Info("waiting for cache to sync")
+		runtime.Logger().WithField("component", "store").Info("waiting for K8S cache to sync")
 		if !cache.WaitForCacheSync(stopper.Done(), svcInformer.HasSynced, ingInformer.HasSynced) {
-			return errors.New("timed out waiting for caches to sync")
+			return errors.New("timed out waiting for K8S cache to sync")
 		}
 		return nil
 	}
