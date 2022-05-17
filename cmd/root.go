@@ -39,22 +39,15 @@ var (
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "gameserver-ingress-controller",
-	Short: "A brief description of your application",
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
+	Use:   "octops-controller",
+	Short: "Automatic Ingress configuration for Game Servers",
+	Long: `The octops-controller watches for game servers managed by Agones and creates Ingress resources that 
+makes the traffic to be routed to the game server using an Ingress Controller.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx, stop := runtime.SetupSignal(context.Background())
 		defer stop()
 
 		logger := runtime.NewLogger(verbose)
-
 		app.StartController(ctx, logger, app.Config{
 			Kubeconfig:             kubeconfig,
 			SyncPeriod:             syncPeriod,
