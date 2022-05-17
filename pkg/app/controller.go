@@ -44,16 +44,20 @@ func StartController(ctx context.Context, logger *logrus.Entry, config Config) e
 	if err != nil {
 		withFatal(logger, err, "failed to create kubernetes client")
 	}
-
 	store, err := stores.NewStore(ctx, client)
 	if err != nil {
 		withFatal(logger, err, "failed to create store")
 	}
 
-	logger.WithField("component", "controller").Info("starting gameserver controller")
+	clusterConfig, err := k8sutil.NewClusterConfig(config.Kubeconfig)
+	if err != nil {
+		withFatal(logger, err, "failed to create cluster config")
+	}
+	agones, err := stores.NewAgonesStore(ctx, clusterConfig, duration)
 
-	recorder := mgr.GetEventRecorderFor("gameserver-ingress-controller")
-	handler := handlers.NewGameSeverEventHandler(store, record.NewEventRecorder(recorder))
+	recorder := mgr.GetEventRecorderFor("octops-gameserver-controller")
+	handler := handlers.NewGameSeverEventHandler(store, agones, record.NewEventRecorder(recorder))
+
 	ctrl, err := controller.NewGameServerController(ctx, mgr, handler, controller.Options{
 		For: &agonesv1.GameServer{},
 	})
@@ -62,6 +66,7 @@ func StartController(ctx context.Context, logger *logrus.Entry, config Config) e
 		withFatal(logger, err, "failed to create controller")
 	}
 
+	logger.WithField("component", "controller").Info("starting gameserver controller")
 	if err := ctrl.Start(ctx); err != nil {
 		withFatal(logger, err, "failed to start controller")
 	}
