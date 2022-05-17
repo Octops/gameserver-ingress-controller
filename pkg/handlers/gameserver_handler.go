@@ -90,12 +90,12 @@ func (h *GameSeverEventHandler) Reconcile(ctx context.Context, logger *logrus.En
 		return errors.Wrapf(err, "failed to reconcile ingress %s", k8sutil.Namespaced(gs))
 	}
 
-	_, err = h.gameserverReconciler.Reconcile(ctx, gs)
+	result, err := h.gameserverReconciler.Reconcile(ctx, gs)
 	if err != nil {
 		return errors.Wrapf(err, "failed to reconcile gameserver %s", k8sutil.Namespaced(gs))
 	}
 
-	msg := fmt.Sprintf("%s/%s reconciled", k8sutil.Namespaced(gs), gs.Status.State)
+	msg := fmt.Sprintf("%s/%s reconciled", k8sutil.Namespaced(result), result.Status.State)
 	logger.Info(msg)
 
 	return nil
