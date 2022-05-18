@@ -8,9 +8,48 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	"strconv"
 	"strings"
+	"text/template"
 )
 
 type IngressOption func(gs *agonesv1.GameServer, ingress *networkingv1.Ingress) error
+
+func WithCustomAnnotationsTemplate() IngressOption {
+	return func(gs *agonesv1.GameServer, ingress *networkingv1.Ingress) error {
+		data := struct {
+			Name string
+		}{
+			Name: gs.Name,
+		}
+
+		annotations := ingress.Annotations
+		for k, v := range gs.Annotations {
+			if strings.HasPrefix(k, gameserver.OctopsAnnotationCustomPrefix) {
+				custom := strings.TrimPrefix(k, gameserver.OctopsAnnotationCustomPrefix)
+				if len(custom) == 0 {
+					return errors.New("custom annotation does not contain a suffix")
+				}
+
+				if !strings.Contains(v, "{{") || !strings.Contains(v, "}}") {
+					return nil
+				}
+
+				t, err := template.New("gs").Parse(v)
+				if err != nil {
+					return errors.Errorf("%s:%s does not contain a valid template", custom, v)
+				}
+
+				b := new(strings.Builder)
+				err = t.Execute(b, data)
+				if parsed := b.String(); len(parsed) > 0 {
+					annotations[custom] = parsed
+				}
+			}
+		}
+
+		ingress.SetAnnotations(annotations)
+		return nil
+	}
+}
 
 func WithCustomAnnotations() IngressOption {
 	return func(gs *agonesv1.GameServer, ingress *networkingv1.Ingress) error {

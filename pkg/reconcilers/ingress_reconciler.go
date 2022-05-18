@@ -51,6 +51,7 @@ func (r *IngressReconciler) reconcileNotFound(ctx context.Context, gs *agonesv1.
 
 	opts := []IngressOption{
 		WithCustomAnnotations(),
+		WithCustomAnnotationsTemplate(),
 		WithIngressRule(mode),
 		WithTLS(mode),
 		WithTLSCertIssuer(issuer),
