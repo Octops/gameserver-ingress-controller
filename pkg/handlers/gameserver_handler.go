@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/Octops/gameserver-ingress-controller/internal/runtime"
 	"github.com/Octops/gameserver-ingress-controller/pkg/gameserver"
+	"github.com/Octops/gameserver-ingress-controller/pkg/k8sutil"
 	"github.com/Octops/gameserver-ingress-controller/pkg/reconcilers"
 	"github.com/Octops/gameserver-ingress-controller/pkg/record"
 	"github.com/Octops/gameserver-ingress-controller/pkg/stores"
@@ -15,17 +16,19 @@ import (
 )
 
 type GameSeverEventHandler struct {
-	logger            *logrus.Entry
-	client            *kubernetes.Clientset
-	serviceReconciler *reconcilers.ServiceReconciler
-	ingressReconciler *reconcilers.IngressReconciler
+	logger               *logrus.Entry
+	client               *kubernetes.Clientset
+	serviceReconciler    *reconcilers.ServiceReconciler
+	ingressReconciler    *reconcilers.IngressReconciler
+	gameserverReconciler *reconcilers.GameServerReconciler
 }
 
-func NewGameSeverEventHandler(store *stores.Store, recorder *record.EventRecorder) *GameSeverEventHandler {
+func NewGameSeverEventHandler(store *stores.Store, agones *stores.AgonesStore, recorder *record.EventRecorder) *GameSeverEventHandler {
 	return &GameSeverEventHandler{
-		logger:            runtime.Logger().WithField("component", "event_handler"),
-		serviceReconciler: reconcilers.NewServiceReconciler(store, recorder),
-		ingressReconciler: reconcilers.NewIngressReconciler(store, recorder),
+		logger:               runtime.Logger().WithField("component", "event_handler"),
+		serviceReconciler:    reconcilers.NewServiceReconciler(store, recorder),
+		ingressReconciler:    reconcilers.NewIngressReconciler(store, recorder),
+		gameserverReconciler: reconcilers.NewGameServerReconciler(agones, recorder),
 	}
 }
 
@@ -79,17 +82,20 @@ func (h *GameSeverEventHandler) Reconcile(ctx context.Context, logger *logrus.En
 
 	_, err := h.serviceReconciler.Reconcile(ctx, gs)
 	if err != nil {
-		return errors.Wrapf(err, "failed to reconcile service %s/%s", gs.Namespace, gs.Name)
+		return errors.Wrapf(err, "failed to reconcile service %s", k8sutil.Namespaced(gs))
 	}
 
 	_, err = h.ingressReconciler.Reconcile(ctx, gs)
 	if err != nil {
-		return errors.Wrapf(err, "failed to reconcile ingress %s/%s", gs.Namespace, gs.Name)
+		return errors.Wrapf(err, "failed to reconcile ingress %s", k8sutil.Namespaced(gs))
 	}
 
-	//Set GameServer label octops.io/ingress-ready: true|false
+	result, err := h.gameserverReconciler.Reconcile(ctx, gs)
+	if err != nil {
+		return errors.Wrapf(err, "failed to reconcile gameserver %s", k8sutil.Namespaced(gs))
+	}
 
-	msg := fmt.Sprintf("%s/%s/%s reconciled", gs.Namespace, gs.Name, gs.Status.State)
+	msg := fmt.Sprintf("%s/%s reconciled", k8sutil.Namespaced(result), result.Status.State)
 	logger.Info(msg)
 
 	return nil

@@ -3,6 +3,7 @@ package record
 import (
 	agonesv1 "agones.dev/agones/pkg/apis/agones/v1"
 	"fmt"
+	"github.com/Octops/gameserver-ingress-controller/pkg/k8sutil"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -15,6 +16,7 @@ const (
 	ReasonReconcileFailed          = "Failed"
 	ReasonReconciled               = "Created"
 	ReasonReconcileCreating        = "Creating"
+	ReasonReconcileUpdated         = "Updated"
 )
 
 type Recorder interface {
@@ -41,6 +43,10 @@ func (r *EventRecorder) RecordCreating(gs *agonesv1.GameServer, kind string) {
 	r.recordEvent(gs, EventTypeNormal, ReasonReconcileCreating, fmt.Sprintf("Creating %s for gameserver %s/%s", kind, gs.Namespace, gs.Name))
 }
 
-func (r *EventRecorder) recordEvent(object runtime.Object, eventtype, reason, message string) {
-	r.recorder.Event(object, eventtype, reason, message)
+func (r *EventRecorder) RecordEvent(gs *agonesv1.GameServer, eventMessage string) {
+	r.recordEvent(gs, EventTypeNormal, ReasonReconcileUpdated, fmt.Sprintf("%s for %s", eventMessage, k8sutil.Namespaced(gs)))
+}
+
+func (r *EventRecorder) recordEvent(object runtime.Object, eventType, reason, message string) {
+	r.recorder.Event(object, eventType, reason, message)
 }
