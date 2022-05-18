@@ -99,6 +99,69 @@ func Test_WithCustomAnnotationsTemplate(t *testing.T) {
 			wantErr:  false,
 			expected: map[string]string{},
 		},
+		{
+			name:           "with custom envoy annotation with template",
+			gameserverName: "game-10",
+			annotations: map[string]string{
+				"octops-projectcontour.io/websocket-routes": "/{{ .Name }}",
+			},
+			wantErr: false,
+			expected: map[string]string{
+				"projectcontour.io/websocket-routes": "/game-10",
+			},
+		},
+		{
+			name:           "with multiples annotations",
+			gameserverName: "game-10",
+			annotations: map[string]string{
+				"annotation/not-custom":                     "somevalue",
+				"octops-projectcontour.io/websocket-routes": "/{{ .Name }}",
+			},
+			wantErr: false,
+			expected: map[string]string{
+				"projectcontour.io/websocket-routes": "/game-10",
+			},
+		},
+		{
+			name:           "with multiples annotations inverted",
+			gameserverName: "game-11",
+			annotations: map[string]string{
+				"octops-projectcontour.io/websocket-routes": "/{{ .Name }}",
+				"annotation/not-custom":                     "somevalue",
+			},
+			wantErr: false,
+			expected: map[string]string{
+				"projectcontour.io/websocket-routes": "/game-11",
+			},
+		},
+		{
+			name:           "with multiples annotations with template",
+			gameserverName: "game-12",
+			annotations: map[string]string{
+				"octops-projectcontour.io/websocket-routes": "/{{ .Name }}",
+				"octops-annotation/custom":                  "custom-{{ .Name }}",
+			},
+			wantErr: false,
+			expected: map[string]string{
+				"projectcontour.io/websocket-routes": "/game-12",
+				"annotation/custom":                  "custom-game-12",
+			},
+		},
+		{
+			name:           "with mixed annotations with template",
+			gameserverName: "game-13",
+			annotations: map[string]string{
+				"annotation/not-custom":                     "some-value",
+				"annotation/not-custom-template":            "some-{{ .Name }}",
+				"octops-projectcontour.io/websocket-routes": "/{{ .Name }}",
+				"octops-annotation/custom":                  "custom-{{ .Name }}",
+			},
+			wantErr: false,
+			expected: map[string]string{
+				"projectcontour.io/websocket-routes": "/game-13",
+				"annotation/custom":                  "custom-game-13",
+			},
+		},
 	}
 
 	for _, tc := range testCase {

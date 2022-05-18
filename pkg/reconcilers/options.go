@@ -30,7 +30,7 @@ func WithCustomAnnotationsTemplate() IngressOption {
 				}
 
 				if !strings.Contains(v, "{{") || !strings.Contains(v, "}}") {
-					return nil
+					continue
 				}
 
 				t, err := template.New("gs").Parse(v)
