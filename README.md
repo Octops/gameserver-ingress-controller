@@ -61,8 +61,8 @@ spec:
   template:
     metadata:
       annotations:
-        octops-kubernetes.io/ingress.class: "contour" # required for Contour to handle ingress
-        octops-projectcontour.io/websocket-routes: "/" # required for Contour to enable websocket
+        octops-kubernetes.io/ingress.class: "contour" #required for Contour to handle ingress
+        octops-projectcontour.io/websocket-routes: "/" #required for Contour to enable websocket
         octops.io/gameserver-ingress-mode: "domain"
         octops.io/gameserver-ingress-domain: "example.com"
 ```
@@ -84,8 +84,8 @@ spec:
   template:
     metadata:
       annotations:
-        octops-kubernetes.io/ingress.class: "contour" # required for Contour to handle ingress
-        octops-projectcontour.io/websocket-routes: "/" # required for Contour to enable websocket
+        octops-kubernetes.io/ingress.class: "contour" #required for Contour to handle ingress
+        octops-projectcontour.io/websocket-routes: "/{{ .Name }}" #required for Contour to enable websocket for exact path. This is a template that the controller will replace by the name of the game server
         octops.io/gameserver-ingress-mode: "path"
         octops.io/gameserver-ingress-fqdn: servers.example.com
 ```
@@ -174,6 +174,16 @@ Any Fleet or GameServer resource annotation that contains the prefix `octops-` w
 Will be added to the ingress in the following format:
 
 `projectcontour.io/websocket-routes`: `/`
+
+It is also possible to use a template to fill values at the Ingress creation time. This feature is specially useful if the routing mode is `path`.
+Envoy will only enable websocket for routes that match exactly the path set on the Ingress rules.
+
+The example below demonstrates how custom annotations using template would be generated for a game server named `octops-tl6hf-fnmgd`.
+
+Custom Annotation: `octops-projectcontour.io/websocket-routes`: `/{{ .Name }}`
+Final Annotation: `octops-projectcontour.io/websocket-routes`: `/octops-tl6hf-fnmgd`
+
+The same applies for any other custom annotation. In the future more fields will be added but now `.Name` is the only one supported.
 
 **Any annotation can be used. It is not restricted to the [Contour controller annotations](https://projectcontour.io/docs/main/config/annotations/)**.
 
