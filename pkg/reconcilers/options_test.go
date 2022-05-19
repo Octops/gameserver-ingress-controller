@@ -8,6 +8,179 @@ import (
 	"testing"
 )
 
+func Test_WithCustomAnnotationsTemplate(t *testing.T) {
+	testCase := []struct {
+		name           string
+		gameserverName string
+		annotations    map[string]string
+		wantErr        bool
+		expected       map[string]string
+	}{
+		{
+			name:           "with not custom annotations",
+			gameserverName: "game-1",
+			annotations: map[string]string{
+				"annotation/not_custom": "somevalue",
+			},
+			wantErr:  false,
+			expected: map[string]string{},
+		},
+		{
+			name:           "with custom annotation without template",
+			gameserverName: "game-2",
+			annotations: map[string]string{
+				"octops-annotation/custom": "somevalue",
+			},
+			wantErr:  false,
+			expected: map[string]string{},
+		},
+		{
+			name:           "with custom annotation with template only",
+			gameserverName: "game-3",
+			annotations: map[string]string{
+				"octops-annotation/custom": "{{ .Name }}",
+			},
+			wantErr: false,
+			expected: map[string]string{
+				"annotation/custom": "game-3",
+			},
+		},
+		{
+			name:           "with custom annotation with complex template",
+			gameserverName: "game-4",
+			annotations: map[string]string{
+				"octops-annotation/custom": "/{{ .Name }}",
+			},
+			wantErr: false,
+			expected: map[string]string{
+				"annotation/custom": "/game-4",
+			},
+		},
+		{
+			name:           "with custom annotation with invalid template",
+			gameserverName: "game-5",
+			annotations: map[string]string{
+				"octops-annotation/custom": "}}{{",
+			},
+			expected: nil,
+			wantErr:  true,
+		},
+		{
+			name:           "with custom annotation with invalid template",
+			gameserverName: "game-6",
+			annotations: map[string]string{
+				"octops-annotation/custom": "{{}}",
+			},
+			wantErr: true,
+		},
+		{
+			name:           "with custom annotation with invalid mixed template",
+			gameserverName: "game-7",
+			annotations: map[string]string{
+				"octops-annotation/custom": "{{ /.Name}}",
+			},
+			wantErr: true,
+		},
+		{
+			name:           "with custom annotation with invalid field",
+			gameserverName: "game-8",
+			annotations: map[string]string{
+				"octops-annotation/custom": "{{ .SomeField }}",
+			},
+			expected: map[string]string{},
+			wantErr:  false,
+		},
+		{
+			name:           "with not custom annotation with template",
+			gameserverName: "game-9",
+			annotations: map[string]string{
+				"annotation/not-custom": "{{ .SomeField }}",
+			},
+			wantErr:  false,
+			expected: map[string]string{},
+		},
+		{
+			name:           "with custom envoy annotation with template",
+			gameserverName: "game-10",
+			annotations: map[string]string{
+				"octops-projectcontour.io/websocket-routes": "/{{ .Name }}",
+			},
+			wantErr: false,
+			expected: map[string]string{
+				"projectcontour.io/websocket-routes": "/game-10",
+			},
+		},
+		{
+			name:           "with multiples annotations",
+			gameserverName: "game-10",
+			annotations: map[string]string{
+				"annotation/not-custom":                     "somevalue",
+				"octops-projectcontour.io/websocket-routes": "/{{ .Name }}",
+			},
+			wantErr: false,
+			expected: map[string]string{
+				"projectcontour.io/websocket-routes": "/game-10",
+			},
+		},
+		{
+			name:           "with multiples annotations inverted",
+			gameserverName: "game-11",
+			annotations: map[string]string{
+				"octops-projectcontour.io/websocket-routes": "/{{ .Name }}",
+				"annotation/not-custom":                     "somevalue",
+			},
+			wantErr: false,
+			expected: map[string]string{
+				"projectcontour.io/websocket-routes": "/game-11",
+			},
+		},
+		{
+			name:           "with multiples annotations with template",
+			gameserverName: "game-12",
+			annotations: map[string]string{
+				"octops-projectcontour.io/websocket-routes": "/{{ .Name }}",
+				"octops-annotation/custom":                  "custom-{{ .Name }}",
+			},
+			wantErr: false,
+			expected: map[string]string{
+				"projectcontour.io/websocket-routes": "/game-12",
+				"annotation/custom":                  "custom-game-12",
+			},
+		},
+		{
+			name:           "with mixed annotations with template",
+			gameserverName: "game-13",
+			annotations: map[string]string{
+				"annotation/not-custom":                     "some-value",
+				"annotation/not-custom-template":            "some-{{ .Name }}",
+				"octops-projectcontour.io/websocket-routes": "/{{ .Name }}",
+				"octops-annotation/custom":                  "custom-{{ .Name }}",
+			},
+			wantErr: false,
+			expected: map[string]string{
+				"projectcontour.io/websocket-routes": "/game-13",
+				"annotation/custom":                  "custom-game-13",
+			},
+		},
+	}
+
+	for _, tc := range testCase {
+		t.Run(tc.name, func(t *testing.T) {
+			gs := newGameServer(tc.gameserverName, "default", tc.annotations)
+			require.Equal(t, tc.gameserverName, gs.Name)
+
+			ingress, err := newIngress(gs, WithCustomAnnotationsTemplate())
+			if tc.wantErr {
+				require.Error(t, err)
+				require.Nil(t, ingress)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.expected, ingress.Annotations)
+			}
+		})
+	}
+}
+
 func Test_WithCustomAnnotations(t *testing.T) {
 	newCustomAnnotation := func(custom string) string {
 		return fmt.Sprintf("%s%s", gameserver.OctopsAnnotationCustomPrefix, custom)

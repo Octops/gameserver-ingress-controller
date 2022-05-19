@@ -20,7 +20,9 @@ metadata:
     cluster: gke-1.22
     region: us-east-1
 spec:
-  replicas: 3
+#  strategy:
+#    type: Recreate
+  replicas: 1
   template:
     metadata:
       labels:
@@ -29,8 +31,10 @@ spec:
       annotations:
 #        octops.io/gameserver-ingress-mode: "domain"
 #        octops.io/gameserver-ingress-domain: "example.com"
+        octops.service-traefik.ingress.kubernetes.io/service.serversscheme: "h2c"
         octops-kubernetes.io/ingress.class: "contour" # required for Contour to handle ingress
-        octops-projectcontour.io/websocket-routes: "/" # required for Contour to enable websocket
+#        octops-projectcontour.io/websocket-routes: "/" # required for Contour to enable websocket
+        octops-projectcontour.io/websocket-routes: "/{{ .Name }}" # use template to define values
         octops.io/gameserver-ingress-mode: "path"
         octops.io/gameserver-ingress-fqdn: "servers.example.com"
     spec:
@@ -46,10 +50,12 @@ spec:
             - name: gameserver
               imagePullPolicy: Always
               image: ksdn117/web-socket-test
+#              image: gcr.io/agones-images/udp-server:0.21
+#              image: gcr.io/agones-images/udp-server:0.22
               resources:
                 requests:
-                  memory: "64Mi"
-                  cpu: "20m"
+                  memory: "1Mi"
+                  cpu: "0.02m"
                 limits:
                   memory: "64Mi"
-                  cpu: "20m"
+                  cpu: "2m"
