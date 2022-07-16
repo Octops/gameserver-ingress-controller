@@ -32,9 +32,9 @@ The following components must be present on the Kubernetes cluster where the ded
   - The DNS record must be a `*` wildcard record. That will allow any game server to be placed under the desired domain automatically.
   - [Contour Install Instructions](https://projectcontour.io/getting-started/#install-contour-and-envoy)
 - [Cert-Manager](https://cert-manager.io/docs/) - [optional if you are managing your own certificates]
-  - Check https://cert-manager.io/docs/tutorials/acme/http-validation/ to understand which type of issuer you should use.
-  - Make sure you have an `Issuer` that uses LetsEncrypt. You can find some examples on [deploy/cert-manager](deploy/cert-manager).
-  - The name of the `Issuer` must be the same used on the Fleet annotation `octops.io/issuer-tls-name`.
+  - Check https://cert-manager.io/docs/tutorials/acme/http-validation/ to understand which type of ClusterIssuer you should use.
+  - Make sure you have an `ClusterIssuer` that uses LetsEncrypt. You can find some examples on [deploy/cert-manager](deploy/cert-manager).
+  - The name of the `ClusterIssuer` must be the same used on the Fleet annotation `octops.io/issuer-tls-name`.
   - Install (**Check for newer versions**): ```$ kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.7.1/cert-manager.yaml```
 
 # Configuration and Manifests
@@ -162,7 +162,7 @@ The table below shows how the information from the game server is used to compos
 | annotation: octops.io/gameserver-ingress-domain |         base domain         |
 | annotation: octops.io/gameserver-ingress-fqdn   |        global domain        | 
 | annotation: octops.io/terminate-tls             | terminate TLS (true, false) |
-| annotation: octops.io/issuer-tls-name           |     name of the issuer      |
+| annotation: octops.io/issuer-tls-name           |  name of the CLusterIssuer  |
 | annotation: octops-[custom-annotation]          |      custom-annotation      |
 | annotation: octops.io/tls-secret-name           |    custom ingress secret    |
 
@@ -211,7 +211,7 @@ https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
 - **octops.io/gameserver-ingress-domain:** name of the domain to be used when creating the ingress. This is the public domain that players will use to reach out to the dedicated game server.
 - **octops.io/gameserver-ingress-fqdn:** full domain name where gameservers will be accessed based on the URL path.
 - **octops.io/terminate-tls:** it determines if the ingress will terminate TLS. If set to "false" it means that TLS will be terminated at the loadbalancer. In this case there won't be a certificated issued by the local cert-manager.
-- **octops.io/issuer-tls-name:** required if `terminate-tls=true`. This is the name of the issuer that cert-manager will use when creating the certificate for the ingress.
+- **octops.io/issuer-tls-name:** required if `terminate-tls=true`. This is the name of the ClusterIssuer that cert-manager will use when creating the certificate for the ingress.
 - **octops.io/tls-secret-name:** ignore CertManager and sets the secret to be used by the Ingress. This secret might be provisioned by other means.
 
 The same configuration works for Fleets and GameServers. Add the following annotations to your manifest:
@@ -254,7 +254,7 @@ Deploy the controller running:
 ```bash
 $ kubectl apply -f deploy/install.yaml
 or
-$ kubectl apply -f https://github.com/Octops/gameserver-ingress-controller/blob/main/deploy/install.yaml
+$ kubectl apply -f https://raw.githubusercontent.com/Octops/gameserver-ingress-controller/main/deploy/install.yaml
 ```
 
 Check the deployment:
@@ -307,7 +307,7 @@ Events:
 
 ## Extras
 
-You can find examples of different issuers on the [deploy/cert-manager](deploy/cert-manager) folder. Make sure you update the information to reflect your environment before applying those manifests.
+You can find examples of different ClusterIssuers on the [deploy/cert-manager](deploy/cert-manager) folder. Make sure you update the information to reflect your environment before applying those manifests.
 
 For a quick test you can use the [examples/fleet.yaml](examples/fleet.yaml). This manifest will deploy a simple http game server that keeps the health check and changes the state to "Ready".
 ```bash

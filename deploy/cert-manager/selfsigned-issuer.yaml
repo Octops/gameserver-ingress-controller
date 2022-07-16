@@ -1,6 +1,6 @@
 # https://cert-manager.io/docs/configuration/selfsigned/
 apiVersion: cert-manager.io/v1
-kind: Issuer
+kind: ClusterIssuer
 metadata:
   name: selfsigned-issuer
 spec:
