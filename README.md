@@ -162,7 +162,7 @@ The table below shows how the information from the game server is used to compos
 | annotation: octops.io/gameserver-ingress-domain |         base domain         |
 | annotation: octops.io/gameserver-ingress-fqdn   |        global domain        | 
 | annotation: octops.io/terminate-tls             | terminate TLS (true, false) |
-| annotation: octops.io/issuer-tls-name           |  name of the CLusterIssuer  |
+| annotation: octops.io/issuer-tls-name           |  name of the ClusterIssuer  |
 | annotation: octops-[custom-annotation]          |      custom-annotation      |
 | annotation: octops.io/tls-secret-name           |    custom ingress secret    |
 
@@ -210,9 +210,9 @@ https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
 - **octops.io/gameserver-ingress-mode:** defines the ingress routing mode, possible values are: domain or path.
 - **octops.io/gameserver-ingress-domain:** name of the domain to be used when creating the ingress. This is the public domain that players will use to reach out to the dedicated game server.
 - **octops.io/gameserver-ingress-fqdn:** full domain name where gameservers will be accessed based on the URL path.
-- **octops.io/terminate-tls:** it determines if the ingress will terminate TLS. If set to "false" it means that TLS will be terminated at the loadbalancer. In this case there won't be a certificated issued by the local cert-manager.
+- **octops.io/terminate-tls:** it determines if the ingress will terminate TLS. If set to "false" it means that TLS will be terminated at the load balancer. In this case there won't be a certificated issued by the local cert-manager.
 - **octops.io/issuer-tls-name:** required if `terminate-tls=true`. This is the name of the ClusterIssuer that cert-manager will use when creating the certificate for the ingress.
-- **octops.io/tls-secret-name:** ignore CertManager and sets the secret to be used by the Ingress. This secret might be provisioned by other means.
+- **octops.io/tls-secret-name:** ignore CertManager and sets the secret to be used by the Ingress. This secret might be provisioned by other means. This is specially useful for wildcard certificates that have been generated or acquired using a different process.
 
 The same configuration works for Fleets and GameServers. Add the following annotations to your manifest:
 ```yaml
@@ -242,6 +242,24 @@ annotations:
 octops.io/terminate-tls: "true"
 octops.io/issuer-tls-name: "selfsigned-issuer"
 ```
+
+# Wildcard Certificates
+It is worth noticing that games using the domain routing model and CertManager handling certificates, might face a limitation imposed by Letsencrypt in terms of the numbers of certificates that can be issued per week. One can find information about the rate limiting on https://letsencrypt.org/docs/rate-limits/.
+
+For each new game server created there will be a new certificate request triggered by CertManager. That means that `https://octops-2dnqv-jmqgp.example.com` and `https://octops-2dnqv-d9nxd.example.com` require 2 different certificates. That approach will not scale well for games that have a high churn. In fact Letsencrypt limits to 50 domains per week.
+
+In order to avoid issues with certificates and limits one should implement a wildcard certificate. There are different ways that this can be achieved. It also depends on how your cloud provider handled TLS termination at the load balancer or how the DNS and certificates for the game domain are managed.
+
+There are 2 options:
+1. Terminate TLS at the load balancer that is exposed by the Contour/Envoy service. That way one can ignore all the TLS or issuer annotations. That also removes the dependency on CertManager. Be aware that cloud providers have different implementations of how certificates are generated and managed. Moreover, how they are assigned to public endpoints or load balancers.
+2. Provide a self-managed wildcard certificate.  
+   1. Add a [TLS secret](https://kubernetes.io/docs/concepts/configuration/secret/#tls-secrets) to the `default` namespace that holds the wildcard certificate content. That certificate must have been generated, acquired or bought from a different source.
+   2. Set the annotation `octops.io/terminate-tls: "false"`. That will tell CertManager to ignore that Fleet.
+   3. Add the annotation `octops.io/tls-secret-name: "my-wildcard-cert"`. That secret will be added to the Ingress under the TLS section. It will tell Envoy to use that secret content to terminate TLS for the public game server endpoint.
+
+**Important**
+- Certificate renewal should be handled by the game server owner. The fact that the secret exists does not mean that Kubernetes or any other process will handle expiration.
+- CertManager can be used to generate wildcard certificates using [DNS validation](https://cert-manager.io/docs/tutorials/acme/dns-validation/#issuing-an-acme-certificate-using-dns-validation).  
 
 # Clean up and GameServer Lifecycle
 Every resource created by the Octops controller is attached to the game server itself. That means, when a game server is deleted from the cluster all its dependencies will be cleaned up by the Kubernetes garbage collector.
@@ -369,7 +387,7 @@ It is a fork from the original project https://github.com/criticalstack/quake-ku
 
 ## Deploy the Quake Fleet
 
-Update the fleet annotation and use a domain that you can point your Loadbalancer or Public IP.
+Update the fleet annotation and use a domain that you can point your load balancer or Public IP.
 ```yaml
 # examples/quake/quake-fleet.yaml
 annotations:
