@@ -11,7 +11,6 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"strings"
 )
 
 type ServiceStore interface {
@@ -48,15 +47,15 @@ func (r *ServiceReconciler) Reconcile(ctx context.Context, gs *agonesv1.GameServ
 func (r *ServiceReconciler) reconcileNotFound(ctx context.Context, gs *agonesv1.GameServer) (*corev1.Service, error) {
 	r.recorder.RecordCreating(gs, record.ServiceKind)
 
-	service, err := newService(gs)
+	opts := []ServiceOption{
+		WithCustomServiceAnnotations(),
+		WithCustomServiceAnnotationsTemplate(),
+	}
+
+	service, err := newService(gs, opts...)
 	if err != nil {
 		r.recorder.RecordFailed(gs, record.ServiceKind, err)
 		return nil, errors.Wrapf(err, "failed to create service for gameserver %s", gs.Name)
-	}
-
-	err = withCustomServiceAnnotations(gs, service)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to set custom service annotations")
 	}
 
 	result, err := r.store.CreateService(ctx, service, metav1.CreateOptions{})
@@ -72,24 +71,7 @@ func (r *ServiceReconciler) reconcileNotFound(ctx context.Context, gs *agonesv1.
 	return result, nil
 }
 
-func withCustomServiceAnnotations(gs *agonesv1.GameServer, service *corev1.Service) error {
-	annotations := service.Annotations
-	for k, v := range gs.Annotations {
-		if strings.HasPrefix(k, gameserver.OctopsAnnotationCustomServicePrefix) {
-			custom := strings.TrimPrefix(k, gameserver.OctopsAnnotationCustomServicePrefix)
-			if len(custom) == 0 {
-				return errors.Errorf("custom annotation %s does not contain a suffix", k)
-			}
-			annotations[custom] = v
-		}
-	}
-
-	service.SetAnnotations(annotations)
-
-	return nil
-}
-
-func newService(gs *agonesv1.GameServer) (*corev1.Service, error) {
+func newService(gs *agonesv1.GameServer, options ...ServiceOption) (*corev1.Service, error) {
 	ref := metav1.NewControllerRef(gs, agonesv1.SchemeGroupVersion.WithKind("GameServer"))
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -115,6 +97,12 @@ func newService(gs *agonesv1.GameServer) (*corev1.Service, error) {
 				"agones.dev/gameserver": gs.Name,
 			},
 		},
+	}
+
+	for _, opt := range options {
+		if err := opt(gs, service); err != nil {
+			return nil, err
+		}
 	}
 
 	return service, nil
