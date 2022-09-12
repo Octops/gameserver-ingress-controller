@@ -17,8 +17,10 @@ func WithCustomAnnotationsTemplate() IngressOption {
 	return func(gs *agonesv1.GameServer, ingress *networkingv1.Ingress) error {
 		data := struct {
 			Name string
+			Port int32
 		}{
 			Name: gs.Name,
+			Port: gameserver.GetGameServerPort(gs).Port,
 		}
 
 		annotations := ingress.Annotations
@@ -47,6 +49,7 @@ func WithCustomAnnotationsTemplate() IngressOption {
 		}
 
 		ingress.SetAnnotations(annotations)
+
 		return nil
 	}
 }

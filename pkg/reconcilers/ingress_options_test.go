@@ -148,7 +148,7 @@ func Test_WithCustomAnnotationsTemplate(t *testing.T) {
 			},
 		},
 		{
-			name:           "with mixed annotations with template",
+			name:           "with mixed annotations with Name template",
 			gameserverName: "game-13",
 			annotations: map[string]string{
 				"annotation/not-custom":                     "some-value",
@@ -160,6 +160,21 @@ func Test_WithCustomAnnotationsTemplate(t *testing.T) {
 			expected: map[string]string{
 				"projectcontour.io/websocket-routes": "/game-13",
 				"annotation/custom":                  "custom-game-13",
+			},
+		},
+		{
+			name:           "with mixed annotations with Port template",
+			gameserverName: "game-13",
+			annotations: map[string]string{
+				"annotation/not-custom":                          "some-value",
+				"annotation/not-custom-template":                 "some-{{ .Port }}",
+				"octops-projectcontour.io/upstream-protocol.tls": "{{ .Port }}",
+				"octops-annotation/custom":                       "custom-{{ .Port }}",
+			},
+			wantErr: false,
+			expected: map[string]string{
+				"projectcontour.io/upstream-protocol.tls": "7771",
+				"annotation/custom":                       "custom-7771",
 			},
 		},
 	}
