@@ -175,15 +175,53 @@ Will be added to the ingress in the following format:
 
 `projectcontour.io/websocket-routes`: `/`
 
-It is also possible to use a template to fill values at the Ingress creation time. This feature is specially useful if the routing mode is `path`.
-Envoy will only enable websocket for routes that match exactly the path set on the Ingress rules.
+The same way annotations prefixed with `octops.service-` will be passed down to the service resource that is the bridge between the game server and the ingress.
 
-The example below demonstrates how custom annotations using template would be generated for a game server named `octops-tl6hf-fnmgd`.
+`octops.service-myannotation`: `myvalue`
 
-Custom Annotation: `octops-projectcontour.io/websocket-routes`: `/{{ .Name }}`
-Final Annotation: `octops-projectcontour.io/websocket-routes`: `/octops-tl6hf-fnmgd`
+Will be added to the service in the following format:
 
-The same applies for any other custom annotation. In the future more fields will be added but now `.Name` is the only one supported.
+`myannotation`: `myvalue`
+
+### Templates
+It is also possible to use a template to fill values at the Ingress and Services creation time. 
+
+This feature is specially useful if the routing mode is `path`. Envoy will only enable websocket for routes that match exactly the path set on the Ingress rules.
+
+The example below demonstrates how custom annotations using a template would be generated for a game server named `octops-tl6hf-fnmgd`.
+
+```yaml
+# manifest.yaml
+octops-projectcontour.io/websocket-routes: "/{{ .Name }}"
+
+# parsed
+octops-projectcontour.io/websocket-routes: "/octops-tl6hf-fnmgd"
+```
+
+
+The field `.Port` is the port exposed by the game server that was assigned by Agones.
+
+```yaml
+# manifest.yaml
+octops.service-projectcontour.io/upstream-protocol.tls: "{{ .Port }}"
+
+# parsed
+octops.service-projectcontour.io/upstream-protocol.tls: "7708"
+```
+
+**Important**
+
+If you are deploying manifests using helm you should scape special characters.
+
+```yaml
+# manifest.yaml
+octops.service-projectcontour.io/upstream-protocol.tls: '{{"{{"}} .Port {{"}}"}}'
+
+# parsed
+octops.service-projectcontour.io/upstream-protocol.tls: "7708"
+```
+
+The same applies for any other custom annotation. The currently supported GameServer fields are `.Name` and `.Port`. More to be added in the future.
 
 **Any annotation can be used. It is not restricted to the [Contour controller annotations](https://projectcontour.io/docs/main/config/annotations/)**.
 
