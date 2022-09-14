@@ -36,7 +36,7 @@ OCTOPS_BIN := bin/octops-controller
 
 IMAGE_REPO=octops/gameserver-ingress-controller
 DOCKER_IMAGE_TAG ?= octops/gameserver-ingress-controller:${VERSION}
-RELEASE_TAG=0.2.1
+RELEASE_TAG=0.2.2
 
 default: clean build
 
