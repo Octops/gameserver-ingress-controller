@@ -75,8 +75,8 @@ func WithCustomAnnotations() IngressOption {
 
 func WithTLS(mode gameserver.IngressRoutingMode) IngressOption {
 	return func(gs *agonesv1.GameServer, ingress *networkingv1.Ingress) error {
-		errMsgInvalidAnnotation := func(mode, annotation string) error {
-			return errors.Errorf(gameserver.ErrIngressRoutingModeEmpty, mode, annotation)
+		errMsgInvalidAnnotation := func(mode, annotation, namespace, name string) error {
+			return errors.Errorf(gameserver.ErrIngressRoutingModeEmpty, mode, annotation, namespace, name)
 		}
 
 		secret, ok := gameserver.HasAnnotation(gs, gameserver.OctopsAnnotationsTLSSecretName)
@@ -87,7 +87,7 @@ func WithTLS(mode gameserver.IngressRoutingMode) IngressOption {
 		tlsForDomain := func(gs *agonesv1.GameServer) ([]networkingv1.IngressTLS, error) {
 			domain, ok := gameserver.HasAnnotation(gs, gameserver.OctopsAnnotationIngressDomain)
 			if !ok {
-				return []networkingv1.IngressTLS{}, errMsgInvalidAnnotation(mode.String(), gameserver.OctopsAnnotationIngressDomain)
+				return []networkingv1.IngressTLS{}, errMsgInvalidAnnotation(mode.String(), gameserver.OctopsAnnotationIngressDomain, gs.Namespace, gs.Name)
 			}
 
 			domains := strings.Split(domain, ",")
@@ -112,7 +112,7 @@ func WithTLS(mode gameserver.IngressRoutingMode) IngressOption {
 		tlsForPath := func(gs *agonesv1.GameServer) ([]networkingv1.IngressTLS, error) {
 			fqdn, ok := gameserver.HasAnnotation(gs, gameserver.OctopsAnnotationIngressFQDN)
 			if !ok {
-				return []networkingv1.IngressTLS{}, errMsgInvalidAnnotation(mode.String(), gameserver.OctopsAnnotationIngressFQDN)
+				return []networkingv1.IngressTLS{}, errMsgInvalidAnnotation(mode.String(), gameserver.OctopsAnnotationIngressFQDN, gs.Namespace, gs.Name)
 			}
 
 			fqdns := strings.Split(fqdn, ",")
@@ -158,8 +158,11 @@ func WithTLS(mode gameserver.IngressRoutingMode) IngressOption {
 
 func WithIngressRule(mode gameserver.IngressRoutingMode) IngressOption {
 	return func(gs *agonesv1.GameServer, ingress *networkingv1.Ingress) error {
-		errMsgInvalidAnnotation := func(mode, annotation, gsName string) error {
-			return errors.Errorf("ingress routing mode %s requires the annotation %s to be present on %s, check your Fleet or GameServer manifest.", mode, annotation, gsName)
+		errMsgInvalidAnnotation := func(namespace, name, annotation string) error {
+			return errors.Errorf(gameserver.ErrGameServerAnnotationEmpty, namespace, name, annotation)
+		}
+		errMsgMissingAnnotation := func(namespace, name, annotation string) error {
+			return errors.Errorf(gameserver.ErrGameServerAnnotationMissing, namespace, name, annotation)
 		}
 
 		var rules []networkingv1.IngressRule
@@ -168,7 +171,10 @@ func WithIngressRule(mode gameserver.IngressRoutingMode) IngressOption {
 		case gameserver.IngressRoutingModePath:
 			fqdns, ok := gameserver.HasAnnotation(gs, gameserver.OctopsAnnotationIngressFQDN)
 			if !ok {
-				return errMsgInvalidAnnotation(mode.String(), gameserver.OctopsAnnotationIngressFQDN, gs.Name)
+				return errMsgMissingAnnotation(gs.Namespace, gs.Name, gameserver.OctopsAnnotationIngressFQDN)
+			}
+			if len(fqdns) == 0 {
+				return errMsgInvalidAnnotation(gs.Namespace, gs.Name, gameserver.OctopsAnnotationIngressFQDN)
 			}
 
 			for _, f := range strings.Split(fqdns, ",") {
@@ -178,7 +184,10 @@ func WithIngressRule(mode gameserver.IngressRoutingMode) IngressOption {
 		case gameserver.IngressRoutingModeDomain:
 			domains, ok := gameserver.HasAnnotation(gs, gameserver.OctopsAnnotationIngressDomain)
 			if !ok {
-				return errMsgInvalidAnnotation(mode.String(), gameserver.OctopsAnnotationIngressDomain, gs.Name)
+				return errMsgMissingAnnotation(gs.Namespace, gs.Name, gameserver.OctopsAnnotationIngressDomain)
+			}
+			if len(domains) == 0 {
+				return errMsgInvalidAnnotation(gs.Namespace, gs.Name, gameserver.OctopsAnnotationIngressDomain)
 			}
 
 			for _, d := range strings.Split(domains, ",") {
@@ -187,7 +196,7 @@ func WithIngressRule(mode gameserver.IngressRoutingMode) IngressOption {
 				rules = append(rules, rule)
 			}
 		default:
-			return errors.Errorf("routing mode not recognised: %s", mode)
+			return errors.Errorf("routing mode '%s' from gameserver %s/%s is not recognised", mode, gs.Namespace, gs.Name)
 		}
 
 		ingress.Spec.Rules = rules
