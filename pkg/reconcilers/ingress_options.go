@@ -1,14 +1,15 @@
 package reconcilers
 
 import (
-	agonesv1 "agones.dev/agones/pkg/apis/agones/v1"
 	"fmt"
-	"github.com/Octops/gameserver-ingress-controller/pkg/gameserver"
-	"github.com/pkg/errors"
-	networkingv1 "k8s.io/api/networking/v1"
 	"strconv"
 	"strings"
 	"text/template"
+
+	agonesv1 "agones.dev/agones/pkg/apis/agones/v1"
+	"github.com/Octops/gameserver-ingress-controller/pkg/gameserver"
+	"github.com/pkg/errors"
+	networkingv1 "k8s.io/api/networking/v1"
 )
 
 type IngressOption func(gs *agonesv1.GameServer, ingress *networkingv1.Ingress) error
@@ -78,55 +79,78 @@ func WithTLS(mode gameserver.IngressRoutingMode) IngressOption {
 			return errors.Errorf(gameserver.ErrIngressRoutingModeEmpty, mode, annotation)
 		}
 
-		var host, secret string
-		var err error
-
 		secret, ok := gameserver.HasAnnotation(gs, gameserver.OctopsAnnotationsTLSSecretName)
-		if !ok {
-			secret = fmt.Sprintf("%s-tls", gs.Name)
-		} else if len(secret) == 0 {
+		if ok && len(secret) == 0 {
 			return errors.Errorf(gameserver.ErrGameServerAnnotationEmpty, gs.Namespace, gs.Name, gameserver.OctopsAnnotationsTLSSecretName)
 		}
 
-		hostForDomain := func(gs *agonesv1.GameServer) (fqdn string, err error) {
+		tlsForDomain := func(gs *agonesv1.GameServer) ([]networkingv1.IngressTLS, error) {
 			domain, ok := gameserver.HasAnnotation(gs, gameserver.OctopsAnnotationIngressDomain)
 			if !ok {
-				return "", errMsgInvalidAnnotation(mode.String(), gameserver.OctopsAnnotationIngressDomain)
+				return []networkingv1.IngressTLS{}, errMsgInvalidAnnotation(mode.String(), gameserver.OctopsAnnotationIngressDomain)
 			}
 
-			return fmt.Sprintf("%s.%s", gs.Name, domain), nil
+			domains := strings.Split(domain, ",")
+			tls := make([]networkingv1.IngressTLS, len(domains))
+			for i, d := range domains {
+				tlsSecret := secret
+				if len(secret) == 0 {
+					tlsSecret = strings.ReplaceAll(fmt.Sprintf("%s-%s-tls", d, gs.Name), ".", "-")
+				}
+
+				tls[i] = networkingv1.IngressTLS{
+					Hosts: []string{
+						fmt.Sprintf("%s.%s", gs.Name, d),
+					},
+					SecretName: tlsSecret,
+				}
+			}
+
+			return tls, nil
 		}
 
-		hostForPath := func(gs *agonesv1.GameServer) (fqdn string, err error) {
+		tlsForPath := func(gs *agonesv1.GameServer) ([]networkingv1.IngressTLS, error) {
 			fqdn, ok := gameserver.HasAnnotation(gs, gameserver.OctopsAnnotationIngressFQDN)
 			if !ok {
-				return "", errMsgInvalidAnnotation(mode.String(), gameserver.OctopsAnnotationIngressFQDN)
+				return []networkingv1.IngressTLS{}, errMsgInvalidAnnotation(mode.String(), gameserver.OctopsAnnotationIngressFQDN)
 			}
 
-			return fqdn, nil
+			fqdns := strings.Split(fqdn, ",")
+			tls := make([]networkingv1.IngressTLS, len(fqdns))
+			for i, f := range fqdns {
+				tlsSecret := secret
+				if len(secret) == 0 {
+					tlsSecret = strings.ReplaceAll(fmt.Sprintf("%s-%s-tls", f, gs.Name), ".", "-")
+				}
+
+				tls[i] = networkingv1.IngressTLS{
+					Hosts: []string{
+						fmt.Sprintf("%s.%s", gs.Name, f),
+					},
+					SecretName: tlsSecret,
+				}
+			}
+
+			return tls, nil
 		}
+
+		var err error
+		var tls []networkingv1.IngressTLS
 
 		switch mode {
 		case gameserver.IngressRoutingModePath:
-			host, err = hostForPath(gs)
+			tls, err = tlsForPath(gs)
 		case gameserver.IngressRoutingModeDomain:
 			fallthrough
 		default:
-			host, err = hostForDomain(gs)
+			tls, err = tlsForDomain(gs)
 		}
 
 		if err != nil {
 			return err
 		}
 
-		ingress.Spec.TLS = []networkingv1.IngressTLS{
-			{
-				Hosts: []string{
-					host,
-				},
-				SecretName: secret,
-			},
-		}
+		ingress.Spec.TLS = tls
 
 		return nil
 	}
@@ -138,26 +162,35 @@ func WithIngressRule(mode gameserver.IngressRoutingMode) IngressOption {
 			return errors.Errorf("ingress routing mode %s requires the annotation %s to be present on %s, check your Fleet or GameServer manifest.", mode, annotation, gsName)
 		}
 
-		var host, path string
+		var rules []networkingv1.IngressRule
 
 		switch mode {
 		case gameserver.IngressRoutingModePath:
-			fqdn, ok := gameserver.HasAnnotation(gs, gameserver.OctopsAnnotationIngressFQDN)
+			fqdns, ok := gameserver.HasAnnotation(gs, gameserver.OctopsAnnotationIngressFQDN)
 			if !ok {
 				return errMsgInvalidAnnotation(mode.String(), gameserver.OctopsAnnotationIngressFQDN, gs.Name)
 			}
-			host, path = fqdn, "/"+gs.Name
+
+			for _, f := range strings.Split(fqdns, ",") {
+				rule := newIngressRule(f, "/"+gs.Name, gs.Name, gameserver.GetGameServerPort(gs).Port)
+				rules = append(rules, rule)
+			}
 		case gameserver.IngressRoutingModeDomain:
-			fallthrough
-		default:
-			domain, ok := gameserver.HasAnnotation(gs, gameserver.OctopsAnnotationIngressDomain)
+			domains, ok := gameserver.HasAnnotation(gs, gameserver.OctopsAnnotationIngressDomain)
 			if !ok {
 				return errMsgInvalidAnnotation(mode.String(), gameserver.OctopsAnnotationIngressDomain, gs.Name)
 			}
-			host, path = fmt.Sprintf("%s.%s", gs.Name, domain), "/"
+
+			for _, d := range strings.Split(domains, ",") {
+				host := fmt.Sprintf("%s.%s", gs.Name, d)
+				rule := newIngressRule(host, "/", gs.Name, gameserver.GetGameServerPort(gs).Port)
+				rules = append(rules, rule)
+			}
+		default:
+			return errors.Errorf("routing mode not recognised: %s", mode)
 		}
 
-		ingress.Spec.Rules = newIngressRule(host, path, gs.Name, gameserver.GetGameServerPort(gs).Port)
+		ingress.Spec.Rules = rules
 		return nil
 	}
 }
@@ -184,39 +217,26 @@ func WithTLSCertIssuer(issuerName string) IngressOption {
 	}
 }
 
-func newIngressRule(host, path, name string, port int32) []networkingv1.IngressRule {
-	return []networkingv1.IngressRule{
-		{
-			Host: host,
-			IngressRuleValue: networkingv1.IngressRuleValue{
-				HTTP: &networkingv1.HTTPIngressRuleValue{
-					Paths: []networkingv1.HTTPIngressPath{
-						{
-							Path:     path,
-							PathType: &defaultPathType,
-							Backend: networkingv1.IngressBackend{
-								Service: &networkingv1.IngressServiceBackend{
-									Name: name,
-									Port: networkingv1.ServiceBackendPort{
-										Number: port,
-									},
+func newIngressRule(host, path, serviceName string, port int32) networkingv1.IngressRule {
+	return networkingv1.IngressRule{
+		Host: strings.TrimSpace(host),
+		IngressRuleValue: networkingv1.IngressRuleValue{
+			HTTP: &networkingv1.HTTPIngressRuleValue{
+				Paths: []networkingv1.HTTPIngressPath{
+					{
+						Path:     path,
+						PathType: &defaultPathType,
+						Backend: networkingv1.IngressBackend{
+							Service: &networkingv1.IngressServiceBackend{
+								Name: serviceName,
+								Port: networkingv1.ServiceBackendPort{
+									Number: port,
 								},
 							},
 						},
 					},
 				},
 			},
-		},
-	}
-}
-
-func newIngressTLS(host, secretName string) []networkingv1.IngressTLS {
-	return []networkingv1.IngressTLS{
-		{
-			Hosts: []string{
-				strings.TrimSpace(host),
-			},
-			SecretName: fmt.Sprintf("%s-tls", strings.TrimSpace(secretName)),
 		},
 	}
 }

@@ -2,10 +2,11 @@ package reconcilers
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/Octops/gameserver-ingress-controller/pkg/gameserver"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func Test_WithCustomAnnotationsTemplate(t *testing.T) {
@@ -336,7 +337,7 @@ func Test_WithTLS(t *testing.T) {
 				gameserver.OctopsAnnotationIngressDomain: "example.com",
 			},
 			routingMode: gameserver.IngressRoutingModeDomain,
-			expected:    "simple-gameserver-no-custom-tls",
+			expected:    "example-com-simple-gameserver-no-custom-tls",
 		},
 		{
 			name:   "no custom secret name for path mode",
@@ -345,7 +346,7 @@ func Test_WithTLS(t *testing.T) {
 				gameserver.OctopsAnnotationIngressFQDN: "www.example.com",
 			},
 			routingMode: gameserver.IngressRoutingModePath,
-			expected:    "simple-gameserver-no-custom-tls",
+			expected:    "www-example-com-simple-gameserver-no-custom-tls",
 		},
 		{
 			name:   "empty secret annotation for domain mode",
