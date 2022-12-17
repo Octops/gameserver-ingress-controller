@@ -125,7 +125,7 @@ func WithTLS(mode gameserver.IngressRoutingMode) IngressOption {
 
 				tls[i] = networkingv1.IngressTLS{
 					Hosts: []string{
-						fmt.Sprintf("%s.%s", gs.Name, f),
+						strings.TrimSpace(f),
 					},
 					SecretName: tlsSecret,
 				}

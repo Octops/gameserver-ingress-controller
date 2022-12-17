@@ -149,7 +149,7 @@ func Test_NewIngress_PathRoutingMode(t *testing.T) {
 			tls := []networkingv1.IngressTLS{
 				{
 					Hosts: []string{
-						fmt.Sprintf("%s.%s", gs.Name, fqdn),
+						strings.TrimSpace(fqdn),
 					},
 					SecretName: strings.ReplaceAll(fmt.Sprintf("%s-%s-tls", fqdn, gs.Name), ".", "-"),
 				},
