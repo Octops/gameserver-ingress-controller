@@ -29,6 +29,7 @@ spec:
       annotations:
         octops-kubernetes.io/ingress.class: "contour" #required for Contour to handle ingress
         octops.io/gameserver-ingress-mode: "path"
+#        octops.io/gameserver-ingress-fqdn: "servers.example.com,servers.example.gg"
         octops.io/gameserver-ingress-fqdn: "servers.example.com"
         octops-projectcontour.io/websocket-routes: "/{{ .Name }}" #required for Contour to enable websocket, use template to define values
         #octops.io/tls-secret-name: "custom-secret"

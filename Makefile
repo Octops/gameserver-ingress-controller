@@ -36,7 +36,7 @@ OCTOPS_BIN := bin/octops-controller
 
 IMAGE_REPO=octops/gameserver-ingress-controller
 DOCKER_IMAGE_TAG ?= octops/gameserver-ingress-controller:${VERSION}
-RELEASE_TAG=0.2.3
+RELEASE_TAG=0.2.4
 
 default: clean build
 
@@ -98,6 +98,10 @@ latest: docker
 	docker push $(IMAGE_REPO):latest
 
 release: latest
+	docker tag $(DOCKER_IMAGE_TAG) $(IMAGE_REPO):$(RELEASE_TAG)
+	docker push $(IMAGE_REPO):$(RELEASE_TAG)
+
+beta: docker
 	docker tag $(DOCKER_IMAGE_TAG) $(IMAGE_REPO):$(RELEASE_TAG)
 	docker push $(IMAGE_REPO):$(RELEASE_TAG)
 

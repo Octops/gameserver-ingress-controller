@@ -23,8 +23,9 @@ const (
 	CertManagerAnnotationIssuer = "cert-manager.io/cluster-issuer"
 	AgonesGameServerNameLabel   = "agones.dev/gameserver"
 
-	ErrGameServerAnnotationEmpty = "gameserver %s/%s has annotation %s but it is empty"
-	ErrIngressRoutingModeEmpty   = "ingress routing mode %s requires the annotation %s to be set"
+	ErrGameServerAnnotationMissing = "gameserver %s/%s is missing annotation %s"
+	ErrGameServerAnnotationEmpty   = "gameserver %s/%s has annotation %s but it is empty"
+	ErrIngressRoutingModeEmpty     = "ingress routing mode %s requires the annotation %s to be set on gameserver %s/%s"
 )
 
 func (m IngressRoutingMode) String() string {

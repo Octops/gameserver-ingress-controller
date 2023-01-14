@@ -2,10 +2,14 @@ package reconcilers
 
 import (
 	"fmt"
+	"strings"
+	"testing"
+
+	networkingv1 "k8s.io/api/networking/v1"
+
 	"github.com/Octops/gameserver-ingress-controller/pkg/gameserver"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func Test_WithCustomAnnotationsTemplate(t *testing.T) {
@@ -306,8 +310,9 @@ func Test_WithTLS(t *testing.T) {
 		gsName      string
 		annotations map[string]string
 		routingMode gameserver.IngressRoutingMode
-		expected    string
+		expected    []networkingv1.IngressTLS
 		wantErr     bool
+		err         error
 	}{
 		{
 			name:   "with custom secret name for domain mode",
@@ -317,7 +322,12 @@ func Test_WithTLS(t *testing.T) {
 				gameserver.OctopsAnnotationsTLSSecretName: "my_custom_secret_name",
 			},
 			routingMode: gameserver.IngressRoutingModeDomain,
-			expected:    "my_custom_secret_name",
+			expected: []networkingv1.IngressTLS{
+				{
+					Hosts:      []string{"simple-gameserver-with-custom.example.com"},
+					SecretName: "my_custom_secret_name",
+				},
+			},
 		},
 		{
 			name:   "with custom secret name for path mode",
@@ -327,7 +337,12 @@ func Test_WithTLS(t *testing.T) {
 				gameserver.OctopsAnnotationsTLSSecretName: "my_custom_secret_name",
 			},
 			routingMode: gameserver.IngressRoutingModePath,
-			expected:    "my_custom_secret_name",
+			expected: []networkingv1.IngressTLS{
+				{
+					Hosts:      []string{"www.example.com"},
+					SecretName: "my_custom_secret_name",
+				},
+			},
 		},
 		{
 			name:   "no custom secret name for domain mode",
@@ -336,7 +351,30 @@ func Test_WithTLS(t *testing.T) {
 				gameserver.OctopsAnnotationIngressDomain: "example.com",
 			},
 			routingMode: gameserver.IngressRoutingModeDomain,
-			expected:    "simple-gameserver-no-custom-tls",
+			expected: []networkingv1.IngressTLS{
+				{
+					Hosts:      []string{"simple-gameserver-no-custom.example.com"},
+					SecretName: "example-com-simple-gameserver-no-custom-tls",
+				},
+			},
+		},
+		{
+			name:   "no custom secret name for domain mode with multiple domains",
+			gsName: "simple-gameserver-no-custom",
+			annotations: map[string]string{
+				gameserver.OctopsAnnotationIngressDomain: "example.com,example.gg",
+			},
+			routingMode: gameserver.IngressRoutingModeDomain,
+			expected: []networkingv1.IngressTLS{
+				{
+					Hosts:      []string{"simple-gameserver-no-custom.example.com"},
+					SecretName: "example-com-simple-gameserver-no-custom-tls",
+				},
+				{
+					Hosts:      []string{"simple-gameserver-no-custom.example.gg"},
+					SecretName: "example-gg-simple-gameserver-no-custom-tls",
+				},
+			},
 		},
 		{
 			name:   "no custom secret name for path mode",
@@ -345,7 +383,30 @@ func Test_WithTLS(t *testing.T) {
 				gameserver.OctopsAnnotationIngressFQDN: "www.example.com",
 			},
 			routingMode: gameserver.IngressRoutingModePath,
-			expected:    "simple-gameserver-no-custom-tls",
+			expected: []networkingv1.IngressTLS{
+				{
+					Hosts:      []string{"www.example.com"},
+					SecretName: "www-example-com-simple-gameserver-no-custom-tls",
+				},
+			},
+		},
+		{
+			name:   "no custom secret name for path mode with multiple domains",
+			gsName: "simple-gameserver-no-custom",
+			annotations: map[string]string{
+				gameserver.OctopsAnnotationIngressFQDN: "www.example.com,www.example.gg",
+			},
+			routingMode: gameserver.IngressRoutingModePath,
+			expected: []networkingv1.IngressTLS{
+				{
+					Hosts:      []string{"www.example.com"},
+					SecretName: "www-example-com-simple-gameserver-no-custom-tls",
+				},
+				{
+					Hosts:      []string{"www.example.gg"},
+					SecretName: "www-example-gg-simple-gameserver-no-custom-tls",
+				},
+			},
 		},
 		{
 			name:   "empty secret annotation for domain mode",
@@ -355,7 +416,8 @@ func Test_WithTLS(t *testing.T) {
 				gameserver.OctopsAnnotationsTLSSecretName: "",
 			},
 			routingMode: gameserver.IngressRoutingModeDomain,
-			expected:    "",
+			expected:    []networkingv1.IngressTLS{},
+			err:         errors.Errorf(gameserver.ErrGameServerAnnotationEmpty, "default", "simple-gameserver-no-custom", gameserver.OctopsAnnotationsTLSSecretName),
 			wantErr:     true,
 		},
 		{
@@ -366,7 +428,26 @@ func Test_WithTLS(t *testing.T) {
 				gameserver.OctopsAnnotationsTLSSecretName: "",
 			},
 			routingMode: gameserver.IngressRoutingModePath,
-			expected:    "",
+			expected:    []networkingv1.IngressTLS{},
+			err:         errors.Errorf(gameserver.ErrGameServerAnnotationEmpty, "default", "simple-gameserver-no-custom", gameserver.OctopsAnnotationsTLSSecretName),
+			wantErr:     true,
+		},
+		{
+			name:        "error routing mode empty for path mode",
+			gsName:      "simple-gameserver-no-custom",
+			annotations: map[string]string{},
+			routingMode: gameserver.IngressRoutingModePath,
+			expected:    []networkingv1.IngressTLS{},
+			err:         errors.Errorf(gameserver.ErrIngressRoutingModeEmpty, gameserver.IngressRoutingModePath, gameserver.OctopsAnnotationIngressFQDN, "default", "simple-gameserver-no-custom"),
+			wantErr:     true,
+		},
+		{
+			name:        "error routing mode empty for domain mode",
+			gsName:      "simple-gameserver-no-custom",
+			annotations: map[string]string{},
+			routingMode: gameserver.IngressRoutingModeDomain,
+			expected:    []networkingv1.IngressTLS{},
+			err:         errors.Errorf(gameserver.ErrIngressRoutingModeEmpty, gameserver.IngressRoutingModeDomain, gameserver.OctopsAnnotationIngressDomain, "default", "simple-gameserver-no-custom"),
 			wantErr:     true,
 		},
 	}
@@ -379,13 +460,126 @@ func Test_WithTLS(t *testing.T) {
 			if tc.wantErr {
 				require.Error(t, err)
 				require.Nil(t, ingress)
-				require.Equal(t, errors.Errorf(gameserver.ErrGameServerAnnotationEmpty, gs.Namespace, gs.Name, gameserver.OctopsAnnotationsTLSSecretName).Error(), err.Error())
+				require.Equal(t, tc.err.Error(), err.Error())
 			} else {
 				require.NoError(t, err)
 				require.NotNil(t, ingress)
-				require.Equal(t, tc.expected, ingress.Spec.TLS[0].SecretName)
+				require.Equal(t, tc.expected, ingress.Spec.TLS)
 			}
-
 		})
 	}
+}
+
+func Test_WithIngressRule(t *testing.T) {
+	testCase := map[string]struct {
+		gsName            string
+		annotations       map[string]string
+		routingMode       gameserver.IngressRoutingMode
+		missingAnnotation string
+		expected          []networkingv1.IngressRule
+		wantErr           bool
+	}{
+		"routing mode path with single domain": {
+			gsName: "test-game-server",
+			annotations: map[string]string{
+				gameserver.OctopsAnnotationIngressFQDN: "www.example.com",
+			},
+			routingMode: gameserver.IngressRoutingModePath,
+			expected:    newIngressRules("www.example.com", "/test-game-server", "test-game-server", 7771),
+			wantErr:     false,
+		},
+		"routing mode path with multiple domain": {
+			gsName: "test-game-server",
+			annotations: map[string]string{
+				gameserver.OctopsAnnotationIngressFQDN: "www.example.com,www.example.gg",
+			},
+			routingMode: gameserver.IngressRoutingModePath,
+			expected:    newIngressRules("www.example.com,www.example.gg", "/test-game-server", "test-game-server", 7771),
+			wantErr:     false,
+		},
+		"routing mode path with error": {
+			gsName: "test-game-server",
+			annotations: map[string]string{
+				gameserver.OctopsAnnotationIngressFQDN: "",
+			},
+			missingAnnotation: gameserver.OctopsAnnotationIngressFQDN,
+			routingMode:       gameserver.IngressRoutingModePath,
+			wantErr:           true,
+		},
+		"routing mode domain with single domain": {
+			gsName: "test-game-server",
+			annotations: map[string]string{
+				gameserver.OctopsAnnotationIngressDomain: "example.com",
+			},
+			routingMode: gameserver.IngressRoutingModeDomain,
+			expected:    newIngressRules("test-game-server.example.com", "/", "test-game-server", 7771),
+			wantErr:     false,
+		},
+		"routing mode domain with multiple domain": {
+			gsName: "test-game-server",
+			annotations: map[string]string{
+				gameserver.OctopsAnnotationIngressDomain: "example.com,example.gg",
+			},
+			routingMode: gameserver.IngressRoutingModeDomain,
+			expected:    newIngressRules("test-game-server.example.com,test-game-server.example.gg", "/", "test-game-server", 7771),
+			wantErr:     false,
+		},
+		"routing mode domain with error": {
+			gsName: "test-game-server",
+			annotations: map[string]string{
+				gameserver.OctopsAnnotationIngressDomain: "",
+			},
+			missingAnnotation: gameserver.OctopsAnnotationIngressDomain,
+			routingMode:       gameserver.IngressRoutingModeDomain,
+			wantErr:           true,
+		},
+	}
+
+	for name, tc := range testCase {
+		t.Run(name, func(t *testing.T) {
+			gs := newGameServer(tc.gsName, "default", tc.annotations)
+
+			ingress, err := newIngress(gs, WithIngressRule(tc.routingMode))
+			if tc.wantErr {
+				require.Error(t, err)
+				require.Nil(t, ingress)
+				require.Equal(t, errors.Errorf(gameserver.ErrGameServerAnnotationEmpty, gs.Namespace, gs.Name, tc.missingAnnotation).Error(), err.Error())
+			} else {
+				require.NoError(t, err)
+				require.NotNil(t, ingress)
+				require.Equal(t, tc.expected, ingress.Spec.Rules)
+			}
+		})
+	}
+}
+
+func newIngressRules(hosts, path, svcName string, port int32) []networkingv1.IngressRule {
+	var rules []networkingv1.IngressRule
+
+	for _, host := range strings.Split(hosts, ",") {
+		rule := networkingv1.IngressRule{
+			Host: strings.TrimSpace(host),
+			IngressRuleValue: networkingv1.IngressRuleValue{
+				HTTP: &networkingv1.HTTPIngressRuleValue{
+					Paths: []networkingv1.HTTPIngressPath{
+						{
+							Path:     path,
+							PathType: &defaultPathType,
+							Backend: networkingv1.IngressBackend{
+								Service: &networkingv1.IngressServiceBackend{
+									Name: svcName,
+									Port: networkingv1.ServiceBackendPort{
+										Number: port,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		rules = append(rules, rule)
+	}
+
+	return rules
 }

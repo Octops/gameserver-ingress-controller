@@ -1,13 +1,16 @@
 package reconcilers
 
 import (
-	agonesv1 "agones.dev/agones/pkg/apis/agones/v1"
 	"fmt"
+	"strconv"
+	"strings"
+	"testing"
+
+	agonesv1 "agones.dev/agones/pkg/apis/agones/v1"
 	"github.com/Octops/gameserver-ingress-controller/pkg/gameserver"
 	"github.com/stretchr/testify/require"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"strconv"
-	"testing"
 )
 
 func Test_NewIngress_DomainRoutingMode(t *testing.T) {
@@ -45,8 +48,37 @@ func Test_NewIngress_DomainRoutingMode(t *testing.T) {
 			issuerName := gameserver.GetTLSCertIssuer(gs)
 			host := fmt.Sprintf("%s.%s", gs.Name, gs.Annotations[gameserver.OctopsAnnotationIngressDomain])
 			ref := metav1.NewControllerRef(gs, agonesv1.SchemeGroupVersion.WithKind("GameServer"))
-			tls := newIngressTLS(host, gs.Name)
-			rules := newIngressRule(host, "/", gs.Name, gameserver.GetGameServerPort(gs).Port)
+			tls := []networkingv1.IngressTLS{
+				{
+					Hosts: []string{
+						host,
+					},
+					SecretName: strings.ReplaceAll(fmt.Sprintf("%s-%s-tls", domain, gs.Name), ".", "-"),
+				},
+			}
+			rules := []networkingv1.IngressRule{
+				{
+					Host: strings.TrimSpace(host),
+					IngressRuleValue: networkingv1.IngressRuleValue{
+						HTTP: &networkingv1.HTTPIngressRuleValue{
+							Paths: []networkingv1.HTTPIngressPath{
+								{
+									Path:     "/",
+									PathType: &defaultPathType,
+									Backend: networkingv1.IngressBackend{
+										Service: &networkingv1.IngressServiceBackend{
+											Name: gs.Name,
+											Port: networkingv1.ServiceBackendPort{
+												Number: gameserver.GetGameServerPort(gs).Port,
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			}
 
 			opts := []IngressOption{
 				WithCustomAnnotations(),
@@ -114,8 +146,38 @@ func Test_NewIngress_PathRoutingMode(t *testing.T) {
 			issuerName := gameserver.GetTLSCertIssuer(gs)
 
 			ref := metav1.NewControllerRef(gs, agonesv1.SchemeGroupVersion.WithKind("GameServer"))
-			tls := newIngressTLS(fqdn, gs.Name)
-			rules := newIngressRule(gs.Annotations[gameserver.OctopsAnnotationIngressFQDN], "/"+gs.Name, gs.Name, gameserver.GetGameServerPort(gs).Port)
+			tls := []networkingv1.IngressTLS{
+				{
+					Hosts: []string{
+						strings.TrimSpace(fqdn),
+					},
+					SecretName: strings.ReplaceAll(fmt.Sprintf("%s-%s-tls", fqdn, gs.Name), ".", "-"),
+				},
+			}
+			host := gs.Annotations[gameserver.OctopsAnnotationIngressFQDN]
+			rules := []networkingv1.IngressRule{
+				{
+					Host: strings.TrimSpace(host),
+					IngressRuleValue: networkingv1.IngressRuleValue{
+						HTTP: &networkingv1.HTTPIngressRuleValue{
+							Paths: []networkingv1.HTTPIngressPath{
+								{
+									Path:     "/" + gs.Name,
+									PathType: &defaultPathType,
+									Backend: networkingv1.IngressBackend{
+										Service: &networkingv1.IngressServiceBackend{
+											Name: gs.Name,
+											Port: networkingv1.ServiceBackendPort{
+												Number: gameserver.GetGameServerPort(gs).Port,
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			}
 
 			opts := []IngressOption{
 				WithCustomAnnotations(),
