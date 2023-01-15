@@ -1,8 +1,9 @@
 package reconcilers
 
 import (
-	agonesv1 "agones.dev/agones/pkg/apis/agones/v1"
 	"context"
+
+	agonesv1 "agones.dev/agones/pkg/apis/agones/v1"
 	"github.com/Octops/gameserver-ingress-controller/internal/runtime"
 	"github.com/Octops/gameserver-ingress-controller/pkg/gameserver"
 	"github.com/Octops/gameserver-ingress-controller/pkg/record"
@@ -48,6 +49,7 @@ func (r *IngressReconciler) reconcileNotFound(ctx context.Context, gs *agonesv1.
 
 	mode := gameserver.GetIngressRoutingMode(gs)
 	issuer := gameserver.GetTLSCertIssuer(gs)
+	className := gameserver.GetIngressClassName(gs)
 
 	opts := []IngressOption{
 		WithCustomAnnotations(),
@@ -55,6 +57,7 @@ func (r *IngressReconciler) reconcileNotFound(ctx context.Context, gs *agonesv1.
 		WithIngressRule(mode),
 		WithTLS(mode),
 		WithTLSCertIssuer(issuer),
+		WithIngressClassName(className),
 	}
 
 	ingress, err := newIngress(gs, opts...)
