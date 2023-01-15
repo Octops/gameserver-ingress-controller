@@ -4,12 +4,14 @@ import (
 	agonesv1 "agones.dev/agones/pkg/apis/agones/v1"
 	"context"
 	"fmt"
+	"github.com/Octops/gameserver-ingress-controller/internal/runtime"
 	"github.com/Octops/gameserver-ingress-controller/pkg/gameserver"
 	"github.com/Octops/gameserver-ingress-controller/pkg/k8sutil"
 	"github.com/Octops/gameserver-ingress-controller/pkg/record"
 	"github.com/pkg/errors"
 	"k8s.io/client-go/util/retry"
 	"strconv"
+	"strings"
 )
 
 type GameServerStore interface {
@@ -64,7 +66,19 @@ func (r *GameServerReconciler) reconcile(ctx context.Context, gs *agonesv1.GameS
 	}
 
 	r.recorder.RecordEvent(result, fmt.Sprintf("GameServer annotated with %s", gameserver.OctopsAnnotationGameServerIngressReady))
+	r.recordDeprecatedAnnotations(result)
 	return result, nil
+}
+
+func (r *GameServerReconciler) recordDeprecatedAnnotations(gs *agonesv1.GameServer) {
+	if _, ok := gs.Annotations[gameserver.OctopsAnnotationIngressClassNameLegacy]; ok {
+
+		msg := fmt.Sprintf("Annotation %s deprecated in favor of %s, future versions won't support this annotation",
+			gameserver.OctopsAnnotationIngressClassNameLegacy, gameserver.OctopsAnnotationIngressClassName)
+
+		r.recorder.RecordEvent(gs, msg)
+		runtime.Logger().Warn(strings.ToLower(msg))
+	}
 }
 
 func (r *GameServerReconciler) MustReconcile(gs *agonesv1.GameServer) (bool, error) {

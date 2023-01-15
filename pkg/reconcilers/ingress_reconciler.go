@@ -48,6 +48,7 @@ func (r *IngressReconciler) reconcileNotFound(ctx context.Context, gs *agonesv1.
 
 	mode := gameserver.GetIngressRoutingMode(gs)
 	issuer := gameserver.GetTLSCertIssuer(gs)
+	className := gameserver.GetIngressClassName(gs)
 
 	opts := []IngressOption{
 		WithCustomAnnotations(),
@@ -55,6 +56,7 @@ func (r *IngressReconciler) reconcileNotFound(ctx context.Context, gs *agonesv1.
 		WithIngressRule(mode),
 		WithTLS(mode),
 		WithTLSCertIssuer(issuer),
+		WithIngressClassName(className),
 	}
 
 	ingress, err := newIngress(gs, opts...)

@@ -19,6 +19,8 @@ const (
 	OctopsAnnotationCustomPrefix           = "octops-"
 	OctopsAnnotationCustomServicePrefix    = "octops.service-"
 	OctopsAnnotationGameServerIngressReady = "octops.io/ingress-ready"
+	OctopsAnnotationIngressClassName       = "octops.io/ingress-class-name"
+	OctopsAnnotationIngressClassNameLegacy = "octops-kubernetes.io/ingress.class"
 
 	CertManagerAnnotationIssuer = "cert-manager.io/cluster-issuer"
 	AgonesGameServerNameLabel   = "agones.dev/gameserver"
@@ -97,6 +99,18 @@ func GetIngressRoutingMode(gs *agonesv1.GameServer) IngressRoutingMode {
 func GetTLSCertIssuer(gs *agonesv1.GameServer) string {
 	if name, ok := HasAnnotation(gs, OctopsAnnotationIssuerName); ok {
 		return name
+	}
+
+	return ""
+}
+
+func GetIngressClassName(gs *agonesv1.GameServer) string {
+	if className, ok := HasAnnotation(gs, OctopsAnnotationIngressClassName); ok {
+		return className
+	}
+
+	if className, ok := HasAnnotation(gs, OctopsAnnotationIngressClassNameLegacy); ok {
+		return className
 	}
 
 	return ""

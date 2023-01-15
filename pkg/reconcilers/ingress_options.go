@@ -184,6 +184,17 @@ func WithTLSCertIssuer(issuerName string) IngressOption {
 	}
 }
 
+func WithIngressClassName(className string) IngressOption {
+	return func(gs *agonesv1.GameServer, ingress *networkingv1.Ingress) error {
+		if className == "" {
+			return errors.Errorf("annotation %s for %s must not be empty, check your Fleet or GameServer manifest.",
+				gameserver.OctopsAnnotationIngressClassName, gs.Name)
+		}
+		ingress.Spec.IngressClassName = &className
+		return nil
+	}
+}
+
 func newIngressRule(host, path, name string, port int32) []networkingv1.IngressRule {
 	return []networkingv1.IngressRule{
 		{
