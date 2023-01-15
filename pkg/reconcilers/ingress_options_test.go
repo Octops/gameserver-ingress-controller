@@ -473,12 +473,53 @@ func TestWithIngressClassName(t *testing.T) {
 			if tc.wantErr {
 				require.Error(t, err)
 				require.Nil(t, ingress)
-				require.Equal(t, errors.Errorf("annotation %s for %s must not be empty, check your Fleet or GameServer manifest.",
-					gameserver.OctopsAnnotationIngressClassName, gs.Name).Error(), err.Error())
+				require.Equal(t, errors.Errorf("annotation %s for %s must not be empty, check your Fleet or GameServer manifest.", gameserver.OctopsAnnotationIngressClassName, gs.Name).Error(), err.Error())
 			} else {
 				require.NoError(t, err)
 				require.NotNil(t, ingress)
 				require.Equal(t, tc.expected, *ingress.Spec.IngressClassName)
+			}
+		})
+	}
+}
+
+func TestIngressClassAnnotationNotPresent(t *testing.T) {
+	testCases := []struct {
+		name        string
+		gsName      string
+		annotations map[string]string
+		expected    map[string]string
+		err         bool
+	}{
+		{
+			name:   "kubernetes.io/class-domain is dropped",
+			gsName: "simple-gameserver",
+			annotations: map[string]string{
+				gameserver.OctopsAnnotationIngressClassName: "contour",
+			},
+			expected: map[string]string{},
+		},
+		{
+			name:   "kubernetes.io/class-domain is dropped when custom annotation is set",
+			gsName: "simple-gameserver",
+			annotations: map[string]string{
+				gameserver.OctopsAnnotationIngressClassNameLegacy: "contour",
+			},
+			expected: map[string]string{},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			gs := newGameServer(tc.gsName, "default", tc.annotations)
+
+			className := gameserver.GetIngressClassName(gs)
+			ingress, err := newIngress(gs, WithCustomAnnotations(), WithIngressClassName(className))
+			if tc.err {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, ingress.Annotations, tc.expected)
 			}
 		})
 	}
