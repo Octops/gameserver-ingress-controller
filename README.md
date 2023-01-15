@@ -61,7 +61,7 @@ spec:
   template:
     metadata:
       annotations:
-        octops-kubernetes.io/ingress.class: "contour" #required for Contour to handle ingress
+        octops.io/ingress-class-name: "contour" #required for Contour to handle ingress
         octops-projectcontour.io/websocket-routes: "/" #required for Contour to enable websocket
         octops.io/gameserver-ingress-mode: "domain"
         octops.io/gameserver-ingress-domain: "example.com"
@@ -84,7 +84,7 @@ spec:
   template:
     metadata:
       annotations:
-        octops-kubernetes.io/ingress.class: "contour" #required for Contour to handle ingress
+        octops.io/ingress-class-name: "contour" #required for Contour to handle ingress
         octops-projectcontour.io/websocket-routes: "/{{ .Name }}" #required for Contour to enable websocket for exact path. This is a template that the controller will replace by the name of the game server
         octops.io/gameserver-ingress-mode: "path"
         octops.io/gameserver-ingress-fqdn: servers.example.com
@@ -115,7 +115,7 @@ spec:
         cluster: gke-1.22
         region: us-east-1
       annotations:
-        octops-kubernetes.io/ingress.class: "contour" # required for Contour to handle ingress
+        octops.io/ingress-class-name: "contour" # required for Contour to handle ingress
         octops-projectcontour.io/websocket-routes: "/" # required for Contour to enable websocket
         # Required annotation used by the controller
         octops.io/gameserver-ingress-mode: "domain"
@@ -165,6 +165,7 @@ The table below shows how the information from the game server is used to compos
 | annotation: octops.io/issuer-tls-name           |  name of the ClusterIssuer  |
 | annotation: octops-[custom-annotation]          |      custom-annotation      |
 | annotation: octops.io/tls-secret-name           |    custom ingress secret    |
+| annotation: octops.io/ingress-class-name        |   ingressClassName field    |
 
 **Support for Multiple Domains**
 
@@ -265,12 +266,13 @@ https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
 - **octops.io/terminate-tls:** it determines if the ingress will terminate TLS. If set to "false" it means that TLS will be terminated at the load balancer. In this case there won't be a certificated issued by the local cert-manager.
 - **octops.io/issuer-tls-name:** required if `terminate-tls=true`. This is the name of the ClusterIssuer that cert-manager will use when creating the certificate for the ingress.
 - **octops.io/tls-secret-name:** ignore CertManager and sets the secret to be used by the Ingress. This secret might be provisioned by other means. This is specially useful for wildcard certificates that have been generated or acquired using a different process.
+- **octops.io/ingress-class-name:** Defines the ingress class name to be used e.g ("contour", "nginx", "traefik")
 
 The same configuration works for Fleets and GameServers. Add the following annotations to your manifest:
 ```yaml
 # Fleet annotations using ingress routing mode: domain
 annotations:
-  octops-kubernetes.io/ingress.class: "contour" # required for Contour to handle ingress
+  octops.io/ingress-class-name: "contour" # required for Contour to handle ingress
   octops-projectcontour.io/websocket-routes: "/" # required for Contour to enable websocket
   octops.io/gameserver-ingress-mode: "domain"
   octops.io/gameserver-ingress-domain: "example.com"
@@ -281,7 +283,7 @@ annotations:
 ```yaml
 # Fleet annotations using ingress routing mode: path
 annotations:
-  octops-kubernetes.io/ingress.class: "contour" # required for Contour to handle ingress
+  octops.io/ingress-class-name: "contour" # required for Contour to handle ingress
   octops-projectcontour.io/websocket-routes: "/" # required for Contour to enable websocket
   octops.io/gameserver-ingress-mode: "path"
   octops.io/gameserver-ingress-fqdn: "servers.example.com"
