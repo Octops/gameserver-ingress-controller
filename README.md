@@ -166,6 +166,20 @@ The table below shows how the information from the game server is used to compos
 | annotation: octops-[custom-annotation]          |      custom-annotation      |
 | annotation: octops.io/tls-secret-name           |    custom ingress secret    |
 
+**Support for Multiple Domains**
+
+For both routing modes one can specify multiple domains. That will make the same game server to be accessible through all of them.
+
+The value must be a comma separated list of domains.
+
+```yaml
+annotations:
+  # Domain Mode
+  octops.io/gameserver-ingress-domain: "example.com,example.gg"
+  # Path Mode
+  octops.io/gameserver-ingress-fqdn: "www.example.com,www.example.gg"
+```
+
 ### Custom Annotations
 Any Fleet or GameServer resource annotation that contains the prefix `octops-` will be added down to the Ingress resource crated by the Octops controller.
 
