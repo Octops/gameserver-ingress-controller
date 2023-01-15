@@ -237,6 +237,20 @@ func WithTLSCertIssuer(issuerName string) IngressOption {
 	}
 }
 
+func WithIngressClassName(className string) IngressOption {
+	return func(gs *agonesv1.GameServer, ingress *networkingv1.Ingress) error {
+		if className == "" {
+			return errors.Errorf("annotation %s for %s must not be empty, check your Fleet or GameServer manifest.",
+				gameserver.OctopsAnnotationIngressClassName, gs.Name)
+		}
+
+		//TODO: The order that Options functions run matters, an Ingress can't have the annotation and the Class set in the spec
+		delete(ingress.Annotations, "kubernetes.io/ingress.class")
+		ingress.Spec.IngressClassName = &className
+		return nil
+	}
+}
+
 func newIngressRule(host, path, serviceName string, port int32) networkingv1.IngressRule {
 	return networkingv1.IngressRule{
 		Host: strings.TrimSpace(host),
