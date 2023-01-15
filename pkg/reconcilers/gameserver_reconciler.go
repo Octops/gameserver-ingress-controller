@@ -1,17 +1,18 @@
 package reconcilers
 
 import (
-	agonesv1 "agones.dev/agones/pkg/apis/agones/v1"
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
+
+	agonesv1 "agones.dev/agones/pkg/apis/agones/v1"
 	"github.com/Octops/gameserver-ingress-controller/internal/runtime"
 	"github.com/Octops/gameserver-ingress-controller/pkg/gameserver"
 	"github.com/Octops/gameserver-ingress-controller/pkg/k8sutil"
 	"github.com/Octops/gameserver-ingress-controller/pkg/record"
 	"github.com/pkg/errors"
 	"k8s.io/client-go/util/retry"
-	"strconv"
-	"strings"
 )
 
 type GameServerStore interface {
