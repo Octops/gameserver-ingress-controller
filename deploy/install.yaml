@@ -7,21 +7,21 @@ metadata:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: octops
+  name: octops-ingress-controller
   namespace: octops-system
   labels:
-    app: octops
+    app: octops-ingress-controller
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: octops
+  name: octops-ingress-controller
   labels:
-    app: octops
+    app: octops-ingress-controller
 rules:
   - apiGroups: [ "" ]
     resources: [ "events" ]
-    verbs: [ "create" ]
+    verbs: [ "create", "update", "patch" ]
   - apiGroups: [""]
     resources: ["pods"]
     verbs: ["list", "get", "watch"]
@@ -38,17 +38,17 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: octops
+  name: octops-ingress-controller
   labels:
-    app: octops
+    app: octops-ingress-controller
 subjects:
   - kind: User
-    name: system:serviceaccount:octops-system:octops
+    name: system:serviceaccount:octops-system:octops-ingress-controller
     apiGroup: rbac.authorization.k8s.io
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: octops
+  name: octops-ingress-controller
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -67,7 +67,7 @@ spec:
       labels:
         app: octops-ingress-controller
     spec:
-      serviceAccountName: octops
+      serviceAccountName: octops-ingress-controller
       containers:
         - image: octops/gameserver-ingress-controller:0.2.4 # Latest release
           name: controller
@@ -82,10 +82,10 @@ spec:
           resources:
             requests:
               cpu: "0.5"
-              memory: "50Mi"
-            limits:
-              cpu: "1"
               memory: "150Mi"
+            limits:
+              cpu: "2"
+              memory: "500Mi"
           livenessProbe:
             httpGet:
               path: /healthz
