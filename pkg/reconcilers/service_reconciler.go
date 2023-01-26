@@ -1,8 +1,9 @@
 package reconcilers
 
 import (
-	agonesv1 "agones.dev/agones/pkg/apis/agones/v1"
 	"context"
+
+	agonesv1 "agones.dev/agones/pkg/apis/agones/v1"
 	"github.com/Octops/gameserver-ingress-controller/internal/runtime"
 	"github.com/Octops/gameserver-ingress-controller/pkg/gameserver"
 	"github.com/Octops/gameserver-ingress-controller/pkg/record"
@@ -84,6 +85,7 @@ func newService(gs *agonesv1.GameServer, options ...ServiceOption) (*corev1.Serv
 			OwnerReferences: []metav1.OwnerReference{*ref},
 		},
 		Spec: corev1.ServiceSpec{
+			ClusterIP: "None",
 			Ports: []corev1.ServicePort{
 				{
 					Name: "gameserver",

@@ -1,8 +1,9 @@
 package reconcilers
 
 import (
-	agonesv1 "agones.dev/agones/pkg/apis/agones/v1"
 	"context"
+
+	agonesv1 "agones.dev/agones/pkg/apis/agones/v1"
 	"github.com/Octops/gameserver-ingress-controller/internal/runtime"
 	"github.com/Octops/gameserver-ingress-controller/pkg/gameserver"
 	"github.com/Octops/gameserver-ingress-controller/pkg/record"
@@ -29,21 +30,21 @@ func NewIngressReconciler(store IngressStore, recorder *record.EventRecorder) *I
 	}
 }
 
-func (r *IngressReconciler) Reconcile(ctx context.Context, gs *agonesv1.GameServer) (*networkingv1.Ingress, error) {
+func (r *IngressReconciler) Reconcile(ctx context.Context, gs *agonesv1.GameServer) (*networkingv1.Ingress, bool, error) {
 	ingress, err := r.store.GetIngress(gs.Name, gs.Namespace)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			return r.reconcileNotFound(ctx, gs)
 		}
 
-		return nil, errors.Wrapf(err, "error retrieving Ingress %s from namespace %s", gs.Name, gs.Namespace)
+		return nil, false, errors.Wrapf(err, "error retrieving Ingress %s from namespace %s", gs.Name, gs.Namespace)
 	}
 
 	//TODO: Validate if details still match the GS info
-	return ingress, nil
+	return ingress, false, nil
 }
 
-func (r *IngressReconciler) reconcileNotFound(ctx context.Context, gs *agonesv1.GameServer) (*networkingv1.Ingress, error) {
+func (r *IngressReconciler) reconcileNotFound(ctx context.Context, gs *agonesv1.GameServer) (*networkingv1.Ingress, bool, error) {
 	r.recorder.RecordCreating(gs, record.IngressKind)
 
 	mode := gameserver.GetIngressRoutingMode(gs)
@@ -60,20 +61,20 @@ func (r *IngressReconciler) reconcileNotFound(ctx context.Context, gs *agonesv1.
 	ingress, err := newIngress(gs, opts...)
 	if err != nil {
 		r.recorder.RecordFailed(gs, record.IngressKind, err)
-		return nil, errors.Wrapf(err, "failed to create ingress for gameserver %s", gs.Name)
+		return nil, false, errors.Wrapf(err, "failed to create ingress for gameserver %s", gs.Name)
 	}
 
 	result, err := r.store.CreateIngress(ctx, ingress, metav1.CreateOptions{})
 	if err != nil {
 		if !k8serrors.IsAlreadyExists(err) {
 			r.recorder.RecordFailed(gs, record.IngressKind, err)
-			return nil, errors.Wrapf(err, "failed to push ingress %s for gameserver %s", ingress.Name, gs.Name)
+			return nil, false, errors.Wrapf(err, "failed to push ingress %s for gameserver %s", ingress.Name, gs.Name)
 		}
 		runtime.Logger().Debug(err)
 	}
 
 	r.recorder.RecordSuccess(gs, record.IngressKind)
-	return result, nil
+	return result, true, nil
 }
 
 func newIngress(gs *agonesv1.GameServer, options ...IngressOption) (*networkingv1.Ingress, error) {

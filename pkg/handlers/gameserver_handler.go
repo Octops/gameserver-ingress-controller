@@ -1,9 +1,10 @@
 package handlers
 
 import (
-	agonesv1 "agones.dev/agones/pkg/apis/agones/v1"
 	"context"
 	"fmt"
+
+	agonesv1 "agones.dev/agones/pkg/apis/agones/v1"
 	"github.com/Octops/gameserver-ingress-controller/internal/runtime"
 	"github.com/Octops/gameserver-ingress-controller/pkg/gameserver"
 	"github.com/Octops/gameserver-ingress-controller/pkg/k8sutil"
@@ -85,7 +86,7 @@ func (h *GameSeverEventHandler) Reconcile(ctx context.Context, logger *logrus.En
 		return errors.Wrapf(err, "failed to reconcile service %s", k8sutil.Namespaced(gs))
 	}
 
-	_, err = h.ingressReconciler.Reconcile(ctx, gs)
+	_, ingReconciled, err := h.ingressReconciler.Reconcile(ctx, gs)
 	if err != nil {
 		return errors.Wrapf(err, "failed to reconcile ingress %s", k8sutil.Namespaced(gs))
 	}
@@ -95,8 +96,14 @@ func (h *GameSeverEventHandler) Reconcile(ctx context.Context, logger *logrus.En
 		return errors.Wrapf(err, "failed to reconcile gameserver %s", k8sutil.Namespaced(gs))
 	}
 
-	msg := fmt.Sprintf("%s/%s reconciled", k8sutil.Namespaced(result), result.Status.State)
-	logger.Info(msg)
+	if ingReconciled {
+		msg := fmt.Sprintf("%s/%s", k8sutil.Namespaced(result), result.Status.State)
+		//msg = fmt.Sprintf("%s/%s nothing to reconcile", k8sutil.Namespaced(result), result.Status.State)
+		logger.WithFields(logrus.Fields{
+			"reconciled": true,
+			"ingress":    "created",
+		}).Info(msg)
+	}
 
 	return nil
 }
