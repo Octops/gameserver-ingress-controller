@@ -48,14 +48,19 @@ func Test_NewIngress_DomainRoutingMode(t *testing.T) {
 			issuerName := gameserver.GetTLSCertIssuer(gs)
 			host := fmt.Sprintf("%s.%s", gs.Name, gs.Annotations[gameserver.OctopsAnnotationIngressDomain])
 			ref := metav1.NewControllerRef(gs, agonesv1.SchemeGroupVersion.WithKind("GameServer"))
-			tls := []networkingv1.IngressTLS{
-				{
-					Hosts: []string{
-						host,
+
+			var tls []networkingv1.IngressTLS
+			if tc.terminateTLS {
+				tls = []networkingv1.IngressTLS{
+					{
+						Hosts: []string{
+							host,
+						},
+						SecretName: strings.ReplaceAll(fmt.Sprintf("%s-%s-tls", domain, gs.Name), ".", "-"),
 					},
-					SecretName: strings.ReplaceAll(fmt.Sprintf("%s-%s-tls", domain, gs.Name), ".", "-"),
-				},
+				}
 			}
+
 			rules := []networkingv1.IngressRule{
 				{
 					Host: strings.TrimSpace(host),
@@ -146,14 +151,18 @@ func Test_NewIngress_PathRoutingMode(t *testing.T) {
 			issuerName := gameserver.GetTLSCertIssuer(gs)
 
 			ref := metav1.NewControllerRef(gs, agonesv1.SchemeGroupVersion.WithKind("GameServer"))
-			tls := []networkingv1.IngressTLS{
-				{
-					Hosts: []string{
-						strings.TrimSpace(fqdn),
+			var tls []networkingv1.IngressTLS
+			if tc.terminateTLS {
+				tls = []networkingv1.IngressTLS{
+					{
+						Hosts: []string{
+							strings.TrimSpace(fqdn),
+						},
+						SecretName: strings.ReplaceAll(fmt.Sprintf("%s-%s-tls", fqdn, gs.Name), ".", "-"),
 					},
-					SecretName: strings.ReplaceAll(fmt.Sprintf("%s-%s-tls", fqdn, gs.Name), ".", "-"),
-				},
+				}
 			}
+
 			host := gs.Annotations[gameserver.OctopsAnnotationIngressFQDN]
 			rules := []networkingv1.IngressRule{
 				{

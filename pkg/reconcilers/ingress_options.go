@@ -75,6 +75,17 @@ func WithCustomAnnotations() IngressOption {
 
 func WithTLS(mode gameserver.IngressRoutingMode) IngressOption {
 	return func(gs *agonesv1.GameServer, ingress *networkingv1.Ingress) error {
+		terminate, ok := gameserver.HasAnnotation(gs, gameserver.OctopsAnnotationTerminateTLS)
+		if !ok || len(terminate) == 0 {
+			return nil
+		}
+
+		if terminateTLS, err := strconv.ParseBool(terminate); err != nil {
+			return errors.Errorf("annotation %s for %s must be \"true\" or \"false\"", gameserver.OctopsAnnotationTerminateTLS, gs.Name)
+		} else if terminateTLS == false {
+			return nil
+		}
+
 		errMsgInvalidAnnotation := func(mode, annotation, namespace, name string) error {
 			return errors.Errorf(gameserver.ErrIngressRoutingModeEmpty, mode, annotation, namespace, name)
 		}
