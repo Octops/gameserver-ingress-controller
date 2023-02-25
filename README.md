@@ -105,14 +105,14 @@ kind: Fleet
 metadata:
   name: octops # the name of your fleet
   labels: # optional labels
-    cluster: gke-1.22
+    cluster: gke-1.24
     region: us-east-1
 spec:
   replicas: 3
   template:
     metadata:
       labels: # optional labels
-        cluster: gke-1.22
+        cluster: gke-1.24
         region: us-east-1
       annotations:
         octops-kubernetes.io/ingress.class: "contour" # required for Contour to handle ingress

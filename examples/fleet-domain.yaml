@@ -17,14 +17,14 @@ kind: Fleet
 metadata:
   name: octops-domain
   labels:
-    cluster: gke-1.17
+    cluster: gke-1.24
     region: us-east-1
 spec:
   replicas: 3
   template:
     metadata:
       labels:
-        cluster: gke-1.17
+        cluster: gke-1.24
         region: us-east-1
       annotations:
         octops-kubernetes.io/ingress.class: "contour" # required for Contour to handle ingress
