@@ -75,7 +75,7 @@ func (h *GameSeverEventHandler) Reconcile(ctx context.Context, logger *logrus.En
 
 	//Only Scheduled, ReadyState and Ready game server states will trigger reconcile
 	if gameserver.MustReconcile(gs) == false {
-		msg := fmt.Sprintf("%s/%s/%s not reconciled, waiting for Scheduled, ReadyState or Ready state", gs.Namespace, gs.Name, gs.Status.State)
+		msg := fmt.Sprintf("%s/%s/%s not reconciled, requires Scheduled, ReadyState or Ready state", gs.Namespace, gs.Name, gs.Status.State)
 		logger.Info(msg)
 
 		return nil
