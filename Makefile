@@ -43,7 +43,7 @@ default: clean build
 build: clean $(OCTOPS_BIN)
 
 $(OCTOPS_BIN):
-	CGO_ENABLED=0 GOOS=linux go build -ldflags '$(LDFLAGS)' -a -installsuffix cgo -o $(OCTOPS_BIN) .
+	CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags '$(LDFLAGS)' -a -installsuffix cgo -o $(OCTOPS_BIN) .
 
 dist:
 	CGO_ENABLED=0 GOOS=linux go build -ldflags '$(LDFLAGS)' -a -installsuffix cgo -o $(OCTOPS_BIN) .
@@ -89,6 +89,9 @@ vendor:
 
 docker:
 	docker build -t $(DOCKER_IMAGE_TAG) .
+
+buildx:
+	docker buildx build --platform linux/arm64/v8,linux/amd64 --push --tag $(IMAGE_REPO):$(RELEASE_TAG) .
 
 push: docker
 	docker push $(DOCKER_IMAGE_TAG)
