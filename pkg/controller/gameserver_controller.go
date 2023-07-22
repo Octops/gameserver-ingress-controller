@@ -2,13 +2,14 @@ package controller
 
 import (
 	"context"
-	"github.com/Octops/gameserver-ingress-controller/internal/runtime"
-	"github.com/Octops/gameserver-ingress-controller/pkg/handlers"
-	"github.com/Octops/gameserver-ingress-controller/pkg/reconcilers"
+	"reflect"
+
+	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
-	"reflect"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -16,7 +17,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	"github.com/Octops/gameserver-ingress-controller/internal/runtime"
+	"github.com/Octops/gameserver-ingress-controller/pkg/handlers"
+	"github.com/Octops/gameserver-ingress-controller/pkg/reconcilers"
 )
 
 type Options struct {
@@ -56,8 +60,8 @@ func NewGameServerController(ctx context.Context, mgr manager.Manager, eventHand
 				return true
 			},
 		}).
-		Watches(&source.Kind{Type: options.For}, &handler.Funcs{
-			CreateFunc: func(createEvent event.CreateEvent, limitingInterface workqueue.RateLimitingInterface) {
+		Watches(options.For, &handler.Funcs{
+			CreateFunc: func(ctx context.Context, createEvent event.CreateEvent, limitingInterface workqueue.RateLimitingInterface) {
 				// OnAdd is triggered only when the controller is syncing its cache.
 				// It does not map ot the resource creation event triggered by Kubernetes
 				request := reconcile.Request{
@@ -78,7 +82,7 @@ func NewGameServerController(ctx context.Context, mgr manager.Manager, eventHand
 				limitingInterface.Forget(request)
 				limitingInterface.Done(request)
 			},
-			UpdateFunc: func(updateEvent event.UpdateEvent, limitingInterface workqueue.RateLimitingInterface) {
+			UpdateFunc: func(ctx context.Context, updateEvent event.UpdateEvent, limitingInterface workqueue.RateLimitingInterface) {
 				request := reconcile.Request{
 					NamespacedName: types.NamespacedName{
 						Namespace: updateEvent.ObjectNew.GetNamespace(),
@@ -97,7 +101,7 @@ func NewGameServerController(ctx context.Context, mgr manager.Manager, eventHand
 				limitingInterface.Forget(request)
 				limitingInterface.Done(request)
 			},
-			DeleteFunc: func(deleteEvent event.DeleteEvent, limitingInterface workqueue.RateLimitingInterface) {
+			DeleteFunc: func(ctx context.Context, deleteEvent event.DeleteEvent, limitingInterface workqueue.RateLimitingInterface) {
 
 				request := reconcile.Request{
 					NamespacedName: types.NamespacedName{
@@ -114,17 +118,16 @@ func NewGameServerController(ctx context.Context, mgr manager.Manager, eventHand
 				limitingInterface.Forget(request)
 				limitingInterface.Done(request)
 			},
-		}).
-		Complete(&reconcilers.Reconciler{
-			Obj:    options.For,
-			Client: mgr.GetClient(),
-			Scheme: mgr.GetScheme(),
-		})
-
+		}).Complete(&reconcilers.Reconciler{
+		Obj:    options.For,
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	})
 	if err != nil {
 		return nil, err
 	}
 
+	log.SetLogger(zap.New())
 	controller := &GameServerController{
 		logger:  logger,
 		Manager: mgr,
