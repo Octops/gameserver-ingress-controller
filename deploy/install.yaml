@@ -69,7 +69,7 @@ spec:
     spec:
       serviceAccountName: octops-ingress-controller
       containers:
-        - image: octops/gameserver-ingress-controller:0.2.6 # Latest release
+        - image: octops/gameserver-ingress-controller:0.2.7 # Latest release
           name: controller
           ports:
             - containerPort: 30235
