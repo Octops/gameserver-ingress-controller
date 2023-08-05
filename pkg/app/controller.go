@@ -1,18 +1,20 @@
 package app
 
 import (
-	agonesv1 "agones.dev/agones/pkg/apis/agones/v1"
 	"context"
 	"fmt"
+	"time"
+
+	agonesv1 "agones.dev/agones/pkg/apis/agones/v1"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+
 	"github.com/Octops/gameserver-ingress-controller/pkg/controller"
 	"github.com/Octops/gameserver-ingress-controller/pkg/handlers"
 	"github.com/Octops/gameserver-ingress-controller/pkg/k8sutil"
 	"github.com/Octops/gameserver-ingress-controller/pkg/manager"
 	"github.com/Octops/gameserver-ingress-controller/pkg/record"
 	"github.com/Octops/gameserver-ingress-controller/pkg/stores"
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
-	"time"
 )
 
 type Config struct {

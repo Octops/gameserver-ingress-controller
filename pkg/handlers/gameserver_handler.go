@@ -5,15 +5,16 @@ import (
 	"fmt"
 
 	agonesv1 "agones.dev/agones/pkg/apis/agones/v1"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+	"k8s.io/client-go/kubernetes"
+
 	"github.com/Octops/gameserver-ingress-controller/internal/runtime"
 	"github.com/Octops/gameserver-ingress-controller/pkg/gameserver"
 	"github.com/Octops/gameserver-ingress-controller/pkg/k8sutil"
 	"github.com/Octops/gameserver-ingress-controller/pkg/reconcilers"
 	"github.com/Octops/gameserver-ingress-controller/pkg/record"
 	"github.com/Octops/gameserver-ingress-controller/pkg/stores"
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
-	"k8s.io/client-go/kubernetes"
 )
 
 type GameSeverEventHandler struct {
