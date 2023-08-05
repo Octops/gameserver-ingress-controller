@@ -31,6 +31,15 @@ func (s *serviceStore) CreateService(ctx context.Context, service *corev1.Servic
 	return result, nil
 }
 
+func (s *serviceStore) UpdateService(ctx context.Context, service *corev1.Service, options metav1.UpdateOptions) (*corev1.Service, error) {
+	result, err := s.client.CoreV1().Services(service.Namespace).Update(ctx, service, options)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to update Service %s", k8sutil.Namespaced(service))
+	}
+
+	return result, nil
+}
+
 func (s *serviceStore) GetService(name, namespace string) (*corev1.Service, error) {
 	result, err := s.informer.Lister().Services(namespace).Get(name)
 	if err != nil {

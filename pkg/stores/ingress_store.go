@@ -31,6 +31,15 @@ func (s *ingressStore) CreateIngress(ctx context.Context, ingress *networkingv1.
 	return result, nil
 }
 
+func (s *ingressStore) UpdateIngress(ctx context.Context, ingress *networkingv1.Ingress, options metav1.UpdateOptions) (*networkingv1.Ingress, error) {
+	result, err := s.client.NetworkingV1().Ingresses(ingress.Namespace).Update(ctx, ingress, options)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to update Ingress %s", k8sutil.Namespaced(ingress))
+	}
+
+	return result, nil
+}
+
 func (s *ingressStore) GetIngress(name, namespace string) (*networkingv1.Ingress, error) {
 	result, err := s.informer.Lister().Ingresses(namespace).Get(name)
 	if err != nil {
