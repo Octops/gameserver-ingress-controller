@@ -23,15 +23,30 @@ type GameSeverEventHandler struct {
 	serviceReconciler    *reconcilers.ServiceReconciler
 	ingressReconciler    *reconcilers.IngressReconciler
 	gameserverReconciler *reconcilers.GameServerReconciler
+	reconcilersFunc      []ReconcileFunc
 }
 
-func NewGameSeverEventHandler(store *stores.Store, agones *stores.AgonesStore, recorder *record.EventRecorder) *GameSeverEventHandler {
-	return &GameSeverEventHandler{
+type ReconcileFunc func(ctx context.Context, logger *logrus.Entry, gs *agonesv1.GameServer) error
+
+type OnReconcile func(store *stores.Store, agones *stores.AgonesStore, recorder *record.EventRecorder) ReconcileFunc
+
+func NewGameSeverEventHandler(store *stores.Store,
+	agones *stores.AgonesStore,
+	recorder *record.EventRecorder,
+	reconcilersFunc ...OnReconcile,
+) *GameSeverEventHandler {
+	handler := &GameSeverEventHandler{
 		logger:               runtime.Logger().WithField("component", "event_handler"),
 		serviceReconciler:    reconcilers.NewServiceReconciler(store, recorder),
 		ingressReconciler:    reconcilers.NewIngressReconciler(store, recorder),
 		gameserverReconciler: reconcilers.NewGameServerReconciler(agones, recorder),
 	}
+
+	for _, r := range reconcilersFunc {
+		handler.reconcilersFunc = append(handler.reconcilersFunc, r(store, agones, recorder))
+	}
+
+	return handler
 }
 
 func (h *GameSeverEventHandler) OnAdd(ctx context.Context, obj interface{}) error {
@@ -104,6 +119,13 @@ func (h *GameSeverEventHandler) Reconcile(ctx context.Context, logger *logrus.En
 			"reconciled": true,
 			"ingress":    "created",
 		}).Info(msg)
+	}
+
+	// Call custom reconcilers after all the core ones have been executed
+	for _, r := range h.reconcilersFunc {
+		if err := r(ctx, logger, gs); err != nil {
+			return errors.Wrapf(err, "reconciler failed on gameserver %s", k8sutil.Namespaced(gs))
+		}
 	}
 
 	return nil
