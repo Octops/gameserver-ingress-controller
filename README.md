@@ -306,7 +306,7 @@ There are 2 options:
 1. Terminate TLS at the load balancer that is exposed by the Contour/Envoy service. That way one can ignore all the TLS or issuer annotations. That also removes the dependency on CertManager. Be aware that cloud providers have different implementations of how certificates are generated and managed. Moreover, how they are assigned to public endpoints or load balancers.
 2. Provide a self-managed wildcard certificate.  
    1. Add a [TLS secret](https://kubernetes.io/docs/concepts/configuration/secret/#tls-secrets) to the `default` namespace that holds the wildcard certificate content. That certificate must have been generated, acquired or bought from a different source.
-   2. Set the annotation `octops.io/terminate-tls: "false"`. That will tell CertManager to ignore that Fleet.
+   2. Set the annotation `octops.io/terminate-tls: "true"`. That will instruct the controller to add the TLS section to the Ingress.
    3. Add the annotation `octops.io/tls-secret-name: "my-wildcard-cert"`. That secret will be added to the Ingress under the TLS section. It will tell Envoy to use that secret content to terminate TLS for the public game server endpoint.
 
 **Important**
