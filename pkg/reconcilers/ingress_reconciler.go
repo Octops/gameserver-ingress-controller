@@ -55,7 +55,10 @@ func (r *IngressReconciler) reconcileNotFound(ctx context.Context, gs *agonesv1.
 		WithCustomAnnotationsTemplate(),
 		WithIngressRule(mode),
 		WithTLS(mode),
-		WithTLSCertIssuer(issuer),
+	}
+
+	if issuer != "" {
+		opts = append(opts, WithTLSCertIssuer(issuer))
 	}
 
 	ingress, err := newIngress(gs, opts...)
