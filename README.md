@@ -263,8 +263,8 @@ https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
 - **octops.io/gameserver-ingress-domain:** name of the domain to be used when creating the ingress. This is the public domain that players will use to reach out to the dedicated game server.
 - **octops.io/gameserver-ingress-fqdn:** full domain name where gameservers will be accessed based on the URL path.
 - **octops.io/terminate-tls:** it determines if the ingress will terminate TLS. If set to "false" it means that TLS will be terminated at the load balancer. In this case there won't be a certificate issued by the local cert-manager.
-- **octops.io/issuer-tls-name:** required if `terminate-tls=true`. This is the name of the ClusterIssuer that cert-manager will use when creating the certificate for the ingress.
-- **octops.io/tls-secret-name:** ignore CertManager and sets the secret to be used by the Ingress. This secret might be provisioned by other means. This is specially useful for wildcard certificates that have been generated or acquired using a different process.
+- **octops.io/issuer-tls-name:** required if `terminate-tls=true` and certificates are provisioned by CertManager. This is the name of the ClusterIssuer that cert-manager will use when creating the certificate for the ingress.
+- **octops.io/tls-secret-name:** ignore CertManager and sets the secret to be used by the Ingress, requires `terminate-tls=true`. This secret might be provisioned by other means. This is specially useful for wildcard certificates that have been generated or acquired using a different process.
 
 The same configuration works for Fleets and GameServers. Add the following annotations to your manifest:
 ```yaml
