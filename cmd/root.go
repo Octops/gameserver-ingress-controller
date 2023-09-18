@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,23 +18,26 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"github.com/Octops/gameserver-ingress-controller/internal/runtime"
-	"github.com/Octops/gameserver-ingress-controller/pkg/app"
+	"os"
+
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"os"
+
+	"github.com/Octops/gameserver-ingress-controller/internal/runtime"
+	"github.com/Octops/gameserver-ingress-controller/pkg/app"
 )
 
 var (
-	cfgFile                string
-	masterURL              string
-	kubeconfig             string
-	syncPeriod             string
-	webhookPort            int
-	healthProbeBindAddress string
-	metricsBindAddress     string
-	verbose                bool
+	cfgFile                 string
+	masterURL               string
+	kubeconfig              string
+	syncPeriod              string
+	webhookPort             int
+	healthProbeBindAddress  string
+	metricsBindAddress      string
+	verbose                 bool
+	maxConcurrentReconciles int
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -49,12 +52,13 @@ makes the traffic to be routed to the game server using an Ingress Controller.`,
 
 		logger := runtime.NewLogger(verbose)
 		app.StartController(ctx, logger, app.Config{
-			Kubeconfig:             kubeconfig,
-			SyncPeriod:             syncPeriod,
-			Port:                   webhookPort,
-			HealthProbeBindAddress: healthProbeBindAddress,
-			MetricsBindAddress:     metricsBindAddress,
-			Verbose:                verbose,
+			Kubeconfig:              kubeconfig,
+			SyncPeriod:              syncPeriod,
+			Port:                    webhookPort,
+			HealthProbeBindAddress:  healthProbeBindAddress,
+			MetricsBindAddress:      metricsBindAddress,
+			Verbose:                 verbose,
+			MaxConcurrentReconciles: maxConcurrentReconciles,
 		})
 	},
 }
@@ -79,6 +83,7 @@ func init() {
 	rootCmd.Flags().StringVar(&healthProbeBindAddress, "health-probe-addrs", ":30235", "TCP address that the controller should bind to for serving health probes")
 	rootCmd.Flags().StringVar(&metricsBindAddress, "metrics-addrs", ":9090", "TCP address that the controller should bind to for serving prometheus metrics")
 	rootCmd.Flags().IntVar(&webhookPort, "webhook-port", 30234, "Port used by the controller for webhooks")
+	rootCmd.Flags().IntVar(&maxConcurrentReconciles, "max-concurrent-reconciles", 10, "Maximum number of concurrent reconciles which can be run simultaneously")
 	rootCmd.Flags().BoolVar(&verbose, "verbose", false, "Produce verbose log")
 }
 

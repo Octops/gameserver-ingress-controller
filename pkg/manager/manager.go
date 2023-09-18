@@ -1,18 +1,24 @@
 package manager
 
 import (
-	"github.com/Octops/gameserver-ingress-controller/pkg/k8sutil"
+	"time"
+
 	"github.com/pkg/errors"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
+	ctrlconfig "sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"time"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
+
+	"github.com/Octops/gameserver-ingress-controller/pkg/k8sutil"
 )
 
 type Options struct {
-	SyncPeriod             *time.Duration
-	Port                   int
-	HealthProbeBindAddress string
-	MetricsBindAddress     string
+	SyncPeriod              *time.Duration
+	Port                    int
+	HealthProbeBindAddress  string
+	MetricsBindAddress      string
+	MaxConcurrentReconciles int
 }
 
 type Manager struct {
@@ -26,10 +32,16 @@ func NewManager(kubeconfig string, options Options) (*Manager, error) {
 	}
 
 	mgr, err := manager.New(config, manager.Options{
-		SyncPeriod:             options.SyncPeriod,
-		Port:                   options.Port,
+		Cache: cache.Options{
+			SyncPeriod: options.SyncPeriod,
+		},
+		WebhookServer:          webhook.NewServer(webhook.Options{Port: options.Port}),
 		MetricsBindAddress:     options.MetricsBindAddress,
 		HealthProbeBindAddress: options.HealthProbeBindAddress,
+		Controller: ctrlconfig.Controller{
+			MaxConcurrentReconciles: options.MaxConcurrentReconciles,
+			CacheSyncTimeout:        time.Second * 30,
+		},
 	})
 	if err != nil {
 		return nil, withError(err)
