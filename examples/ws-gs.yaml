@@ -1,0 +1,33 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: ws-gameserver
+  name: ws-gameserver
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ws-gameserver
+  template:
+    metadata:
+      labels:
+        app: ws-gameserver
+    spec:
+      containers:
+        - image: octops/gameserver-websocket:v0.0.2
+          name: gameserver
+          ports:
+            - containerPort: 5000
+              name: http
+              hostPort: 7700
+          imagePullPolicy: Always
+          resources:
+            requests:
+              cpu: "0.05"
+              memory: "50Mi"
+            limits:
+              cpu: "2"
+              memory: "500Mi"
