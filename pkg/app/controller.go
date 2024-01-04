@@ -1,27 +1,30 @@
 package app
 
 import (
-	agonesv1 "agones.dev/agones/pkg/apis/agones/v1"
 	"context"
 	"fmt"
+	"time"
+
+	agonesv1 "agones.dev/agones/pkg/apis/agones/v1"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+
 	"github.com/Octops/gameserver-ingress-controller/pkg/controller"
 	"github.com/Octops/gameserver-ingress-controller/pkg/handlers"
 	"github.com/Octops/gameserver-ingress-controller/pkg/k8sutil"
 	"github.com/Octops/gameserver-ingress-controller/pkg/manager"
 	"github.com/Octops/gameserver-ingress-controller/pkg/record"
 	"github.com/Octops/gameserver-ingress-controller/pkg/stores"
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
-	"time"
 )
 
 type Config struct {
-	Kubeconfig             string
-	SyncPeriod             string
-	Port                   int
-	Verbose                bool
-	HealthProbeBindAddress string
-	MetricsBindAddress     string
+	Kubeconfig              string
+	SyncPeriod              string
+	Port                    int
+	Verbose                 bool
+	HealthProbeBindAddress  string
+	MetricsBindAddress      string
+	MaxConcurrentReconciles int
 }
 
 func StartController(ctx context.Context, logger *logrus.Entry, config Config) error {
@@ -31,10 +34,11 @@ func StartController(ctx context.Context, logger *logrus.Entry, config Config) e
 	}
 
 	mgr, err := manager.NewManager(config.Kubeconfig, manager.Options{
-		SyncPeriod:             &duration,
-		Port:                   config.Port,
-		HealthProbeBindAddress: config.HealthProbeBindAddress,
-		MetricsBindAddress:     config.MetricsBindAddress,
+		SyncPeriod:              &duration,
+		Port:                    config.Port,
+		HealthProbeBindAddress:  config.HealthProbeBindAddress,
+		MetricsBindAddress:      config.MetricsBindAddress,
+		MaxConcurrentReconciles: config.MaxConcurrentReconciles,
 	})
 	if err != nil {
 		withFatal(logger, err, "failed to create controller manager")
