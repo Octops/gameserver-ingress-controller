@@ -49,12 +49,14 @@ func (r *IngressReconciler) reconcileNotFound(ctx context.Context, gs *agonesv1.
 
 	mode := gameserver.GetIngressRoutingMode(gs)
 	issuer := gameserver.GetTLSCertIssuer(gs)
+	className := gameserver.GetIngressClassName(gs)
 
 	opts := []IngressOption{
 		WithCustomAnnotations(),
 		WithCustomAnnotationsTemplate(),
 		WithIngressRule(mode),
 		WithTLS(mode),
+		WithIngressClassName(className),
 	}
 
 	if issuer != "" {
