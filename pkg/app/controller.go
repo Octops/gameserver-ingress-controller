@@ -60,7 +60,7 @@ func StartController(ctx context.Context, logger *logrus.Entry, config Config) e
 	agones, err := stores.NewAgonesStore(ctx, clusterConfig, duration)
 
 	recorder := mgr.GetEventRecorderFor("octops-gameserver-controller")
-	handler := handlers.NewGameSeverEventHandler(store, agones, record.NewEventRecorder(recorder))
+	handler := handlers.NewGameServerEventHandler(store, agones, record.NewEventRecorder(recorder))
 
 	ctrl, err := controller.NewGameServerController(ctx, mgr, handler, controller.Options{
 		For: &agonesv1.GameServer{},

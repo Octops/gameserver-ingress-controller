@@ -16,7 +16,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-type GameSeverEventHandler struct {
+type GameServerEventHandler struct {
 	logger               *logrus.Entry
 	client               *kubernetes.Clientset
 	serviceReconciler    *reconcilers.ServiceReconciler
@@ -24,8 +24,8 @@ type GameSeverEventHandler struct {
 	gameserverReconciler *reconcilers.GameServerReconciler
 }
 
-func NewGameSeverEventHandler(store *stores.Store, agones *stores.AgonesStore, recorder *record.EventRecorder) *GameSeverEventHandler {
-	return &GameSeverEventHandler{
+func NewGameServerEventHandler(store *stores.Store, agones *stores.AgonesStore, recorder *record.EventRecorder) *GameServerEventHandler {
+	return &GameServerEventHandler{
 		logger:               runtime.Logger().WithField("component", "event_handler"),
 		serviceReconciler:    reconcilers.NewServiceReconciler(store, recorder),
 		ingressReconciler:    reconcilers.NewIngressReconciler(store, recorder),
@@ -33,7 +33,7 @@ func NewGameSeverEventHandler(store *stores.Store, agones *stores.AgonesStore, r
 	}
 }
 
-func (h *GameSeverEventHandler) OnAdd(ctx context.Context, obj interface{}) error {
+func (h *GameServerEventHandler) OnAdd(ctx context.Context, obj interface{}) error {
 	gs := gameserver.FromObject(obj)
 
 	if err := h.Reconcile(ctx, h.logger.WithField("event", "added"), gs); err != nil {
@@ -43,7 +43,7 @@ func (h *GameSeverEventHandler) OnAdd(ctx context.Context, obj interface{}) erro
 	return nil
 }
 
-func (h *GameSeverEventHandler) OnUpdate(ctx context.Context, _ interface{}, newObj interface{}) error {
+func (h *GameServerEventHandler) OnUpdate(ctx context.Context, _ interface{}, newObj interface{}) error {
 	gs := gameserver.FromObject(newObj)
 
 	if err := h.Reconcile(ctx, h.logger.WithField("event", "updated"), gs); err != nil {
@@ -53,14 +53,14 @@ func (h *GameSeverEventHandler) OnUpdate(ctx context.Context, _ interface{}, new
 	return nil
 }
 
-func (h *GameSeverEventHandler) OnDelete(_ context.Context, obj interface{}) error {
+func (h *GameServerEventHandler) OnDelete(_ context.Context, obj interface{}) error {
 	gs := obj.(*agonesv1.GameServer)
 	h.logger.WithField("event", "deleted").Infof("%s/%s", gs.Namespace, gs.Name)
 
 	return nil
 }
 
-func (h *GameSeverEventHandler) Reconcile(ctx context.Context, logger *logrus.Entry, gs *agonesv1.GameServer) error {
+func (h *GameServerEventHandler) Reconcile(ctx context.Context, logger *logrus.Entry, gs *agonesv1.GameServer) error {
 	if _, ok := gameserver.HasAnnotation(gs, gameserver.OctopsAnnotationIngressMode); !ok {
 		logger.Infof("skipping %s/%s, annotation %s not present", gs.Namespace, gs.Name, gameserver.OctopsAnnotationIngressMode)
 		return nil
