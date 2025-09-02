@@ -8,6 +8,7 @@ import (
 	ctrlconfig "sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/Octops/gameserver-ingress-controller/pkg/k8sutil"
@@ -36,7 +37,7 @@ func NewManager(kubeconfig string, options Options) (*Manager, error) {
 			SyncPeriod: options.SyncPeriod,
 		},
 		WebhookServer:          webhook.NewServer(webhook.Options{Port: options.Port}),
-		MetricsBindAddress:     options.MetricsBindAddress,
+		Metrics:                server.Options{BindAddress: options.MetricsBindAddress},
 		HealthProbeBindAddress: options.HealthProbeBindAddress,
 		Controller: ctrlconfig.Controller{
 			MaxConcurrentReconciles: options.MaxConcurrentReconciles,
