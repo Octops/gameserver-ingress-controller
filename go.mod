@@ -1,6 +1,6 @@
 module github.com/Octops/gameserver-ingress-controller
 
-go 1.20
+go 1.26.1
 
 require (
 	agones.dev/agones v1.33.0
