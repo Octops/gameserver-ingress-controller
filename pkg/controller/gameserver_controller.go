@@ -61,7 +61,7 @@ func NewGameServerController(ctx context.Context, mgr manager.Manager, eventHand
 			},
 		}).
 		Watches(options.For, &handler.Funcs{
-			CreateFunc: func(ctx context.Context, createEvent event.CreateEvent, limitingInterface workqueue.RateLimitingInterface) {
+			CreateFunc: func(ctx context.Context, createEvent event.CreateEvent, limitingInterface workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 				// OnAdd is triggered only when the controller is syncing its cache.
 				// It does not map ot the resource creation event triggered by Kubernetes
 				request := reconcile.Request{
@@ -82,7 +82,7 @@ func NewGameServerController(ctx context.Context, mgr manager.Manager, eventHand
 				limitingInterface.Forget(request)
 				limitingInterface.Done(request)
 			},
-			UpdateFunc: func(ctx context.Context, updateEvent event.UpdateEvent, limitingInterface workqueue.RateLimitingInterface) {
+			UpdateFunc: func(ctx context.Context, updateEvent event.UpdateEvent, limitingInterface workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 				request := reconcile.Request{
 					NamespacedName: types.NamespacedName{
 						Namespace: updateEvent.ObjectNew.GetNamespace(),
@@ -101,7 +101,7 @@ func NewGameServerController(ctx context.Context, mgr manager.Manager, eventHand
 				limitingInterface.Forget(request)
 				limitingInterface.Done(request)
 			},
-			DeleteFunc: func(ctx context.Context, deleteEvent event.DeleteEvent, limitingInterface workqueue.RateLimitingInterface) {
+			DeleteFunc: func(ctx context.Context, deleteEvent event.DeleteEvent, limitingInterface workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 
 				request := reconcile.Request{
 					NamespacedName: types.NamespacedName{
