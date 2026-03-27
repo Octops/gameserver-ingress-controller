@@ -22,8 +22,9 @@ spec:
         # Select the Gateway API backend instead of Ingress
         octops.io/router-backend: "gateway"
 
-        # Name of the pre-existing Gateway resource
+        # Name and namespace of the pre-existing Gateway resource
         octops.io/gateway-name: "gateway"
+        octops.io/gateway-namespace: "octops-gateway"
 
         # Listener name inside the Gateway (must match spec.listeners[].name in gateway.yaml)
         # Use "https" when a TLS certificate is configured on the Gateway listener.

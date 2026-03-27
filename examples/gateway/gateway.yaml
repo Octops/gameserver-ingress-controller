@@ -12,7 +12,7 @@ apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
   name: gateway
-  namespace: default
+  namespace: octops-gateway   # dedicated namespace keeps provisioner pods out of default
 spec:
   gatewayClassName: contour
   listeners:
@@ -22,6 +22,12 @@ spec:
       tls:
         certificateRefs:
           - name: wildcard-game-tls   # Secret written by cert-manager — see certificate.yaml
+      allowedRoutes:
+        namespaces:
+          from: All   # HTTPRoutes are in the game server namespace, not octops-gateway
     - name: http
       port: 80
       protocol: HTTP
+      allowedRoutes:
+        namespaces:
+          from: All   # HTTPRoutes are in the game server namespace, not octops-gateway

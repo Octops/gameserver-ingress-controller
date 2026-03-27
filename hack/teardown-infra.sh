@@ -8,6 +8,7 @@ GATEWAY_API_VERSION="v1.5.1"
 AGONES_NAMESPACE="agones-system"
 CERT_MANAGER_NAMESPACE="cert-manager"
 CONTOUR_NAMESPACE="projectcontour"
+GATEWAY_NAMESPACE="octops-gateway"
 
 # -----------------------------------------------------------------------------
 # Helpers
@@ -36,7 +37,7 @@ kubectl cluster-info &>/dev/null || die "Cannot reach the cluster. Check your ku
 # -----------------------------------------------------------------------------
 
 info "Deleting Gateway and HTTPRoutes ..."
-kubectl delete gateway gateway -n default --ignore-not-found 2>/dev/null || true
+kubectl delete gateway gateway -n "${GATEWAY_NAMESPACE}" --ignore-not-found 2>/dev/null || true
 kubectl delete httproutes --all -n default --ignore-not-found 2>/dev/null || true
 success "Gateway resources deleted."
 
@@ -79,13 +80,14 @@ kubectl delete namespace \
   "${AGONES_NAMESPACE}" \
   "${CERT_MANAGER_NAMESPACE}" \
   "${CONTOUR_NAMESPACE}" \
+  "${GATEWAY_NAMESPACE}" \
   --ignore-not-found --wait=false
 
 # Namespaces can get stuck in Terminating when services have load-balancer
 # finalizers or when API groups from deleted CRDs are still referenced.
 # Force-finalize any that are stuck.
 info "Force-finalizing any stuck namespaces ..."
-for ns in "${AGONES_NAMESPACE}" "${CERT_MANAGER_NAMESPACE}" "${CONTOUR_NAMESPACE}"; do
+for ns in "${AGONES_NAMESPACE}" "${CERT_MANAGER_NAMESPACE}" "${CONTOUR_NAMESPACE}" "${GATEWAY_NAMESPACE}"; do
   phase=$(kubectl get namespace "$ns" -o jsonpath='{.status.phase}' 2>/dev/null || true)
   if [ "$phase" = "Terminating" ]; then
     info "Force-finalizing namespace $ns ..."
@@ -98,7 +100,7 @@ done
 # Wait up to 30s for namespaces to disappear
 for i in $(seq 1 6); do
   remaining=0
-  for ns in "${AGONES_NAMESPACE}" "${CERT_MANAGER_NAMESPACE}" "${CONTOUR_NAMESPACE}"; do
+  for ns in "${AGONES_NAMESPACE}" "${CERT_MANAGER_NAMESPACE}" "${CONTOUR_NAMESPACE}" "${GATEWAY_NAMESPACE}"; do
     kubectl get namespace "$ns" &>/dev/null && remaining=$((remaining+1)) || true
   done
   [ "$remaining" -eq 0 ] && break

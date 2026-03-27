@@ -9,6 +9,7 @@ GATEWAY_API_VERSION="v1.5.1"
 AGONES_NAMESPACE="agones-system"
 CERT_MANAGER_NAMESPACE="cert-manager"
 CONTOUR_NAMESPACE="projectcontour"
+GATEWAY_NAMESPACE="octops-gateway"
 
 # -----------------------------------------------------------------------------
 # Helpers
@@ -141,16 +142,20 @@ success "GatewayClass applied."
 
 # -----------------------------------------------------------------------------
 # Gateway resource (HTTP listener — no TLS required for local testing)
-# The provisioner will spin up a dedicated Envoy deployment for this Gateway.
+# Placed in its own namespace so the provisioner's Contour+Envoy pods don't
+# land in the default application namespace.
+# allowedRoutes.namespaces.from: All lets HTTPRoutes from any namespace attach.
 # -----------------------------------------------------------------------------
 
-info "Creating Gateway ..."
-kubectl apply -f - <<'EOF'
+info "Creating Gateway namespace and Gateway ..."
+kubectl create namespace "${GATEWAY_NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
+
+kubectl apply -f - <<EOF
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
   name: gateway
-  namespace: default
+  namespace: ${GATEWAY_NAMESPACE}
 spec:
   gatewayClassName: contour
   listeners:
@@ -159,17 +164,17 @@ spec:
       protocol: HTTP
       allowedRoutes:
         namespaces:
-          from: Same
+          from: All
 EOF
 
 info "Waiting for Gateway to become Programmed ..."
-for i in $(seq 1 30); do
-  status=$(kubectl get gateway gateway -n default -o jsonpath='{.status.conditions[?(@.type=="Programmed")].status}' 2>/dev/null || true)
-  if [ "$status" = "True" ]; then
+for i in \$(seq 1 30); do
+  status=\$(kubectl get gateway gateway -n "${GATEWAY_NAMESPACE}" -o jsonpath='{.status.conditions[?(@.type=="Programmed")].status}' 2>/dev/null || true)
+  if [ "\$status" = "True" ]; then
     success "Gateway is Programmed."
     break
   fi
-  echo "  ... waiting (${i}/30)"
+  echo "  ... waiting (\${i}/30)"
   sleep 5
 done
 
@@ -186,7 +191,8 @@ echo " cert-manager:        ${CERT_MANAGER_VERSION}  (${CERT_MANAGER_NAMESPACE})
 echo " Contour (ingress):   ${CONTOUR_VERSION}  (${CONTOUR_NAMESPACE})"
 echo " Contour (gateway):   ${CONTOUR_VERSION}  (${CONTOUR_NAMESPACE})"
 echo " Gateway API CRDs:    ${GATEWAY_API_VERSION}"
-echo " Gateway:             gateway (default namespace, HTTP :80)"
+echo " Gateway:             gateway (${GATEWAY_NAMESPACE} namespace, HTTP :80)"
+echo "   Envoy svc:         envoy-gateway.${GATEWAY_NAMESPACE} — port-forward to test locally"
 echo "============================================"
 echo ""
 echo "Next steps:"
