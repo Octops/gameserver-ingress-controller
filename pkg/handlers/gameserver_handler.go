@@ -25,14 +25,17 @@ type GameSeverEventHandler struct {
 	gameserverReconciler *reconcilers.GameServerReconciler
 }
 
-func NewGameSeverEventHandler(store *stores.Store, agones *stores.AgonesStore, recorder *record.EventRecorder) *GameSeverEventHandler {
-	return &GameSeverEventHandler{
+func NewGameSeverEventHandler(store *stores.Store, agones *stores.AgonesStore, recorder *record.EventRecorder, gatewayEnabled bool) *GameSeverEventHandler {
+	h := &GameSeverEventHandler{
 		logger:               runtime.Logger().WithField("component", "event_handler"),
 		serviceReconciler:    reconcilers.NewServiceReconciler(store, recorder),
 		ingressReconciler:    reconcilers.NewIngressReconciler(store, recorder),
-		gatewayReconciler:    reconcilers.NewGatewayReconciler(store, recorder),
 		gameserverReconciler: reconcilers.NewGameServerReconciler(agones, recorder),
 	}
+	if gatewayEnabled {
+		h.gatewayReconciler = reconcilers.NewGatewayReconciler(store, recorder)
+	}
+	return h
 }
 
 func (h *GameSeverEventHandler) OnAdd(ctx context.Context, obj interface{}) error {
@@ -91,6 +94,13 @@ func (h *GameSeverEventHandler) Reconcile(ctx context.Context, logger *logrus.En
 	var routeReconciled bool
 	switch gameserver.GetRouterBackend(gs) {
 	case gameserver.RouterBackendGateway:
+		if h.gatewayReconciler == nil {
+			return errors.Errorf(
+				"gameserver %s requests router-backend=gateway but the Gateway API backend is disabled; "+
+					"restart the controller with --enable-gateway-api=true or install Gateway API CRDs",
+				k8sutil.Namespaced(gs),
+			)
+		}
 		_, routeReconciled, err = h.gatewayReconciler.Reconcile(ctx, gs)
 		if err != nil {
 			return errors.Wrapf(err, "failed to reconcile HTTPRoute %s", k8sutil.Namespaced(gs))

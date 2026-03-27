@@ -249,7 +249,100 @@ make docker                        # build image from current source
 make run                           # docker run mounting .infrastructure/config.yml as kubeconfig
 ```
 
+Alternatively, build and run the binary directly (faster iteration, no Docker needed):
+
+```bash
+go build -o /tmp/octops-controller .
+/tmp/octops-controller --kubeconfig ~/.kube/config [flags]
+```
+
 `hack/setup-infra.sh` installs all cluster dependencies (Agones, cert-manager, both Contour variants, Gateway API CRDs, GatewayClass, and a test Gateway) from scratch. `hack/teardown-infra.sh` cleans everything up, including force-finalizing any stuck namespaces. Both scripts require `kubectl`, `helm`, and `jq`.
+
+---
+
+## Testing the `--enable-gateway-api` Flag
+
+After any change to the Gateway API CRD detection or startup logic, run these four manual checks against a live cluster. The cluster is always available via `~/.kube/config`.
+
+### Setup: Check HTTPRoute CRD presence
+
+```bash
+kubectl api-resources --api-group=gateway.networking.k8s.io | grep httproute
+```
+
+If `httproutes` is absent, tests 1–3 below are runnable. If present, skip to test 4 (or delete the CRD first with `kubectl delete crd httproutes.gateway.networking.k8s.io`).
+
+### Test 1 — `auto` mode, HTTPRoute CRD **absent** → should warn and start
+
+```bash
+/tmp/octops-controller --kubeconfig ~/.kube/config --enable-gateway-api=auto &
+sleep 5; kill %1
+```
+
+Expected output contains:
+```
+level=warning msg="Gateway API CRDs not found — gateway backend disabled..."
+```
+No `fatal` or error exit.
+
+### Test 2 — `true` mode, HTTPRoute CRD **absent** → should fail hard immediately
+
+```bash
+/tmp/octops-controller --kubeconfig ~/.kube/config --enable-gateway-api=true
+```
+
+Expected output contains:
+```
+level=fatal msg="failed to resolve --enable-gateway-api: Gateway API CRDs not found...httproutes not found in gateway.networking.k8s.io/v1"
+```
+Process must exit non-zero immediately (no delayed crash).
+
+### Test 3 — `false` mode → should always disable cleanly
+
+```bash
+/tmp/octops-controller --kubeconfig ~/.kube/config --enable-gateway-api=false &
+sleep 5; kill %1
+```
+
+Expected output contains:
+```
+level=info msg="Gateway API backend disabled (--enable-gateway-api=false)"
+```
+No errors, no CRD probe attempted.
+
+### Test 4 — `auto` mode, HTTPRoute CRD **present** → should detect and enable
+
+Install the CRD if needed (standard-install includes httproutes; experimental-install for v1.5.1 does **not** include it despite the name):
+
+```bash
+kubectl apply -f "https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/standard-install.yaml"
+kubectl wait --for=condition=established crd httproutes.gateway.networking.k8s.io --timeout=30s
+```
+
+Then:
+
+```bash
+/tmp/octops-controller --kubeconfig ~/.kube/config --enable-gateway-api=auto &
+sleep 5; kill %1
+```
+
+Expected output contains:
+```
+level=info msg="Gateway API CRDs detected — gateway backend enabled (--enable-gateway-api=auto)"
+```
+
+### Important: experimental-install vs standard-install
+
+The `experimental-install.yaml` for Gateway API v1.5.1 does **not** include the `httproutes` CRD. Use `standard-install.yaml` to install HTTPRoute. The experimental bundle adds TCPRoute/UDPRoute/etc. which are needed by Contour but are separate from HTTPRoute.
+
+### Unit tests
+
+```bash
+go test ./...           # run all unit tests
+make test               # same, with cache cleared
+```
+
+Unit tests are table-driven, use no mocking frameworks, and test real object construction. They do not require a cluster.
 
 ---
 
