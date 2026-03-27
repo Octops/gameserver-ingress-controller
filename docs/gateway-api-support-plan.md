@@ -43,7 +43,7 @@ Additional annotations required when `gateway` backend is selected:
 
 | Annotation | Description | Example |
 |---|---|---|
-| `octops.io/gateway-name` | Name of the pre-existing `Gateway` resource | `prod-gateway` |
+| `octops.io/gateway-name` | Name of the pre-existing `Gateway` resource | `gateway` |
 | `octops.io/gateway-namespace` | Namespace of the Gateway (optional, defaults to same ns) | `infra` |
 | `octops.io/gateway-section-name` | `sectionName` inside the Gateway listener (optional) | `https` |
 | `octops.io/gameserver-ingress-mode` | Reused as-is: `domain` or `path` routing | `domain` |
@@ -226,12 +226,48 @@ No changes needed to existing test files.
    The controller should log a clear error and not crash if the HTTPRoute CRD is absent
    (e.g., wrap the informer start with a CRD presence check).
 
-2. **TLS handling**: With Ingress, TLS termination config (secret name, cert-manager
-   issuer) is on the Ingress object. With Gateway API, TLS is configured on the Gateway
-   listener by the cluster operator, not on the HTTPRoute. The `octops.io/terminate-tls`
-   and `octops.io/issuer-tls-name` annotations become advisory/informational for the
-   gateway mode. Document this clearly; consider emitting a warning event if those
-   annotations are present but the backend is `gateway`.
+2. **TLS handling**: TLS is managed via **Option A** — the ops team creates a
+   `cert-manager.io/v1/Certificate` resource that writes into a Kubernetes `Secret`, and
+   the `Gateway` listener references that `Secret` by name. The controller plays no role
+   in TLS provisioning for gateway mode.
+
+   ```yaml
+   # Ops creates once — wildcard covers all game servers in domain mode,
+   # single-hostname cert covers path mode
+   apiVersion: cert-manager.io/v1
+   kind: Certificate
+   metadata:
+     name: wildcard-game-cert
+     namespace: default
+   spec:
+     secretName: wildcard-game-tls
+     issuerRef:
+       name: letsencrypt-prod
+       kind: ClusterIssuer
+     dnsNames:
+       - "*.game.example.com"   # domain mode
+       # - "game.example.com"   # path mode
+   ---
+   apiVersion: gateway.networking.k8s.io/v1
+   kind: Gateway
+   metadata:
+     name: gateway
+     namespace: default
+   spec:
+     gatewayClassName: nginx
+     listeners:
+       - name: https
+         port: 443
+         protocol: HTTPS
+         tls:
+           certificateRefs:
+             - name: wildcard-game-tls   # same as Certificate.spec.secretName
+   ```
+
+   The `octops.io/terminate-tls` and `octops.io/issuer-tls-name` annotations have **no
+   effect** in gateway mode. The controller emits a warning Kubernetes event if either is
+   present on a game server using `router-backend: gateway`, so users are not silently
+   confused about why cert-manager is not reacting.
 
 3. **Annotation naming**: Reusing `octops.io/gameserver-ingress-mode/domain/fqdn` for
    both backends keeps the surface area small, but the names are Ingress-centric. An

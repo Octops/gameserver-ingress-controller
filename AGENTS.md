@@ -44,8 +44,11 @@ pkg/
 internal/
   runtime/              Logger (logrus) and signal handling
   version/              Build metadata
-deploy/install.yaml     Production Kubernetes manifests (RBAC, Deployment)
-examples/               Sample Fleet manifests for all routing modes
+deploy/
+  install.yaml          Controller RBAC + Deployment manifest
+  gateway/              Gateway API infrastructure (GatewayClass for Contour provisioner)
+  cert-manager/         ClusterIssuer examples — ingress mode only
+examples/               Sample Fleet manifests for all routing modes and backends
 docs/                   Design documents (gateway-api-support-plan.md)
 ```
 
@@ -197,18 +200,68 @@ r.recorder.RecordWarning(gs, record.HTTPRouteKind, "human-readable explanation")
 
 ---
 
-## Active Feature: Gateway API Support
+## Gateway API Backend
 
-The `feature/gateway-api-support` branch adds `router-backend: gateway` as an alternative to Ingress. The implementation is in:
+`router-backend: gateway` is a fully implemented alternative to the Ingress backend. The implementation lives in:
 
 - `pkg/reconcilers/gateway_reconciler.go` — creates `HTTPRoute` resources
 - `pkg/reconcilers/gateway_options.go` — `WithHTTPRouteParentRef()`, `WithHTTPRouteRules()`, etc.
 - `pkg/stores/gateway_store.go` — `GetHTTPRoute` / `CreateHTTPRoute`
-- `examples/gateway/` — sample manifests
+- `examples/gateway/` — sample Fleet manifests and infrastructure YAML
+- `deploy/gateway/gatewayclass.yaml` — GatewayClass for Contour Gateway Provisioner
 
-**Key design decision**: HTTPRoutes do not manage TLS. TLS lives on the Gateway listener (provisioned by ops). If TLS-related annotations are detected, the controller emits warnings rather than failing. This avoids cert-manager rate limits at scale.
+**Key design decisions:**
+- HTTPRoutes do not manage TLS. TLS lives on the Gateway listener (provisioned by ops via `examples/gateway/gateway.yaml` + `certificate.yaml`). This avoids cert-manager rate limits at scale.
+- The `Gateway` resource is pre-provisioned by the cluster operator — the controller only creates `HTTPRoute` resources, one per `GameServer`.
+- If `octops.io/terminate-tls` or `octops.io/issuer-tls-name` are set on a game server using the gateway backend, the controller emits a warning event rather than failing — these annotations have no effect in gateway mode.
+- OwnerReferences are set on each `HTTPRoute` pointing to its `GameServer`, so Kubernetes GC handles cleanup automatically when a game server is deleted.
 
-The Gateway resource must be pre-provisioned by the cluster operator — the controller only creates HTTPRoutes.
+**Cluster setup for gateway mode** requires two separate installs that can coexist with the standard Contour ingress install:
+```bash
+# Use experimental-install (not standard-install): includes TCPRoute/UDPRoute CRDs
+# required by Contour v1.32.1. Must use --server-side --force-conflicts because
+# the httproutes CRD exceeds the 262144-byte client-side apply annotation limit.
+kubectl apply --server-side --force-conflicts \
+  -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/experimental-install.yaml
+
+# Contour v1.32.1 watches TLSRoute/v1alpha2 and BackendTLSPolicy/v1alpha3, but
+# Gateway API v1.5.1 ships those versions as served=false. Patch them:
+for crd in tlsroutes.gateway.networking.k8s.io backendtlspolicies.gateway.networking.k8s.io; do
+  kubectl get crd "$crd" -o json \
+    | jq '.spec.versions = (.spec.versions | map(if .name == "v1alpha2" or .name == "v1alpha3" then .served = true else . end))' \
+    | kubectl apply -f -
+done
+
+kubectl apply -f https://raw.githubusercontent.com/projectcontour/contour/v1.32.1/examples/render/contour-gateway-provisioner.yaml
+kubectl apply -f deploy/gateway/gatewayclass.yaml
+```
+
+Use `hack/setup-infra.sh` to automate all of the above (including Agones and cert-manager).
+
+---
+
+## Local Development
+
+To run the controller locally against a cluster (the published image will not have unreleased changes):
+
+```bash
+make docker                        # build image from current source
+make run                           # docker run mounting .infrastructure/config.yml as kubeconfig
+```
+
+`hack/setup-infra.sh` installs all cluster dependencies (Agones, cert-manager, both Contour variants, Gateway API CRDs, GatewayClass, and a test Gateway) from scratch. `hack/teardown-infra.sh` cleans everything up, including force-finalizing any stuck namespaces. Both scripts require `kubectl`, `helm`, and `jq`.
+
+---
+
+## Gateway API Experimental Status
+
+> **The Gateway API backend is experimental.** It has been validated end-to-end but has not seen production usage. Bugs and feedback should be reported as GitHub issues at https://github.com/Octops/gameserver-ingress-controller/issues.
+
+Known sharp edges for AI agents working in this area:
+- Contour v1.32.1 + Gateway API v1.5.1 require CRD patching (see setup above) — this is a Contour bug, not ours.
+- `hack/setup-infra.sh` applies the provisioner with `--force-conflicts` because it bundles older Gateway API CRDs (v1.2.1) that conflict with v1.5.1; the resulting CRD errors are expected and harmless.
+- The example game server (`octops/gameserver-http:latest`) listens on `containerPort: 8088`. Fleet manifests must match this — do not use the default Agones `7777`.
+- On Docker Desktop, NodePorts are not reachable from the host. Use `kubectl port-forward -n default svc/envoy-gateway 8080:80` for local testing.
 
 ---
 
@@ -246,3 +299,15 @@ Go version: **1.26.1**
 - Sync period default: `15s`
 - Max concurrent reconciles default: `10`
 - Docker image built via `make docker`; `make install` deploys via `kubectl apply`
+
+**Ingress backend infrastructure** (standard Contour):
+```bash
+kubectl apply -f https://projectcontour.io/quickstart/contour.yaml
+```
+
+**Gateway API backend infrastructure** (Contour Gateway Provisioner — independent, can run alongside the above):
+```bash
+# See the Gateway API Backend section above for full install steps including
+# the required --server-side flag and CRD compatibility patches.
+kubectl apply -f deploy/gateway/gatewayclass.yaml   # after provisioner is installed
+```

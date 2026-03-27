@@ -26,16 +26,37 @@ The following components must be present on the Kubernetes cluster where the ded
 
 - [Agones](https://agones.dev/site)
   - https://agones.dev/site/docs/installation/install-agones/helm/
-- [Contour Ingress Controller](https://projectcontour.io/)
-  - Choose the appropriate setup depending on your environment, network topology and cloud provider. It will affect how the Ingress Service will be exposed to the internet.
-  - Update the DNS information to reflect the name/address of the load balancer pointing to the exposed service. You can find this information running `kubectl -n projectcontour get svc` and checking the column `EXTERNAL-IP`.
-  - The DNS record must be a `*` wildcard record. That will allow any game server to be placed under the desired domain automatically.
-  - [Contour Install Instructions](https://projectcontour.io/getting-started/#install-contour-and-envoy)
+- [Contour](https://projectcontour.io/) — install the variant that matches the backend you intend to use. Both can run side-by-side in the same cluster.
+
+  **Ingress backend** (default — `octops.io/router-backend` absent or set to `ingress`):
+  ```bash
+  kubectl apply -f https://projectcontour.io/quickstart/contour.yaml
+  ```
+  This installs the standard Contour + Envoy deployment in the `projectcontour` namespace. It handles `networking.k8s.io/v1 Ingress` resources.
+
+  **Gateway API backend** (`octops.io/router-backend: gateway`):
+  ```bash
+  # 1. Install Gateway API CRDs (standard channel)
+  kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/standard-install.yaml
+
+  # 2. Install the Contour Gateway Provisioner
+  kubectl apply -f https://projectcontour.io/quickstart/contour-gateway-provisioner.yaml
+  ```
+  The Gateway Provisioner watches for `Gateway` resources and automatically creates a dedicated Envoy deployment per Gateway. No additional configuration is needed.
+
+  After installing the provisioner, create a `GatewayClass`:
+  ```bash
+  kubectl apply -f deploy/gateway/gatewayclass.yaml
+  ```
+
+  Both installations are independent. Running the standard Contour install for Ingress and the Gateway Provisioner for Gateway API in the same cluster is fully supported.
+
+  For either variant, update your DNS with a `*` wildcard record pointing to the load balancer address shown under `EXTERNAL-IP` in `kubectl -n projectcontour get svc`.
 - [Cert-Manager](https://cert-manager.io/docs/) - [optional if you are managing your own certificates]
   - Check https://cert-manager.io/docs/tutorials/acme/http-validation/ to understand which type of ClusterIssuer you should use.
   - Make sure you have an `ClusterIssuer` that uses LetsEncrypt. You can find some examples on [deploy/cert-manager](deploy/cert-manager).
   - The name of the `ClusterIssuer` must be the same used on the Fleet annotation `octops.io/issuer-tls-name`.
-  - Install (**Check for newer versions**): ```$ kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.7.1/cert-manager.yaml```
+  - Install (**Check for newer versions**): ```$ kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.20.0/cert-manager.yaml```
 
 # Configuration and Manifests
 
@@ -91,6 +112,95 @@ spec:
 ```
 
 Check the [examples](examples) folder for a full Fleet manifest that uses the `Path` routing mode.
+
+## Kubernetes Gateway API (alternative to Ingress)
+
+> **Experimental.** Gateway API support has been validated end-to-end but has not seen production usage. Please report bugs and feedback at https://github.com/Octops/gameserver-ingress-controller/issues.
+
+The controller supports the [Kubernetes Gateway API](https://gateway-api.sigs.k8s.io/) as an alternative to the standard Ingress resource. Add the `octops.io/router-backend: gateway` annotation to your Fleet or GameServer to opt in. The default behaviour (Ingress) is unchanged.
+
+### How it differs from Ingress
+
+With Ingress the controller creates one `Ingress` resource per game server and cert-manager provisions one TLS certificate per game server. With Gateway API:
+
+- The controller creates one `HTTPRoute` per game server — routing rules only, no TLS config.
+- A shared `Gateway` resource (created once by ops) handles TLS termination using a single wildcard certificate (domain mode) or a single hostname certificate (path mode). This avoids Let's Encrypt rate limits entirely.
+- cert-manager manages the certificate independently of individual game servers.
+
+### Prerequisites
+
+1. Gateway API CRDs and the Contour Gateway Provisioner installed — see the [Contour setup section](#requirements) above.
+2. A `GatewayClass` named `contour` created pointing at the provisioner controller (also in the Contour setup section above).
+3. cert-manager v1.15+ installed with a `ClusterIssuer` configured. Gateway API support is **Beta** as of cert-manager v1.15 (latest: v1.20.0) and must be enabled:
+   ```yaml
+   # helm values or cert-manager config
+   config:
+     enableGatewayAPI: true
+   ```
+
+### Setup (apply once, before deploying any Fleet)
+
+```bash
+# 1. Issue the TLS certificate (creates a wildcard cert via cert-manager)
+kubectl apply -f examples/gateway/certificate.yaml
+
+# 2. Create the Gateway (the provisioner will spin up a dedicated Envoy for it)
+kubectl apply -f examples/gateway/gateway.yaml
+```
+
+Update the domain, issuer name, and `gatewayClassName` in both files to match your environment before applying.
+
+### Deploy a Fleet
+
+```yaml
+# Domain mode — each game server gets its own subdomain: https://[gs-name].game.example.com
+annotations:
+  octops.io/router-backend: "gateway"
+  octops.io/gateway-name: "gateway"
+  octops.io/gateway-section-name: "https"
+  octops.io/gameserver-ingress-mode: "domain"
+  octops.io/gameserver-ingress-domain: "game.example.com"
+```
+
+```yaml
+# Path mode — all game servers share one hostname: https://game.example.com/[gs-name]
+annotations:
+  octops.io/router-backend: "gateway"
+  octops.io/gateway-name: "gateway"
+  octops.io/gateway-section-name: "https"
+  octops.io/gameserver-ingress-mode: "path"
+  octops.io/gameserver-ingress-fqdn: "game.example.com"
+```
+
+Full manifests are available in [examples/gateway](examples/gateway):
+- [`certificate.yaml`](examples/gateway/certificate.yaml) — cert-manager Certificate for TLS
+- [`gateway.yaml`](examples/gateway/gateway.yaml) — shared Gateway resource
+- [`fleet-domain.yaml`](examples/gateway/fleet-domain.yaml) — Fleet using domain routing mode
+- [`fleet-path.yaml`](examples/gateway/fleet-path.yaml) — Fleet using path routing mode
+
+### Gateway API annotations reference
+
+| Annotation | Required | Description |
+|---|---|---|
+| `octops.io/router-backend` | Yes | Set to `gateway` to use Gateway API instead of Ingress |
+| `octops.io/gateway-name` | Yes | Name of the pre-existing `Gateway` resource |
+| `octops.io/gateway-namespace` | No | Namespace of the Gateway (defaults to same namespace as the game server) |
+| `octops.io/gateway-section-name` | No | Listener name inside the Gateway (e.g. `https`) |
+| `octops.io/gameserver-ingress-mode` | Yes | `domain` or `path` — same as Ingress mode |
+| `octops.io/gameserver-ingress-domain` | domain mode | Base domain for game server subdomains |
+| `octops.io/gameserver-ingress-fqdn` | path mode | Shared hostname for all game servers |
+
+> **Note:** The annotations `octops.io/terminate-tls` and `octops.io/issuer-tls-name` have **no effect** in gateway mode. TLS is configured on the `Gateway` listener, not on individual `HTTPRoute` resources. The controller will emit a warning event if either annotation is found on a game server using the gateway backend.
+
+### HTTPRoutes created by the controller
+
+```bash
+$ kubectl get httproutes
+NAME                 HOSTNAMES                               AGE
+octops-2dnqv-jmqgp   ["octops-2dnqv-jmqgp.game.example.com"]   4m
+octops-2dnqv-d9nxd   ["octops-2dnqv-d9nxd.game.example.com"]   4m
+octops-2dnqv-fr8tx   ["octops-2dnqv-fr8tx.game.example.com"]   4m
+```
 
 ## How it works
 When a game server is created by Agones, either as part of a Fleet or a stand-alone deployment, the Octops controller will handle the provisioning of a couple of resources.
@@ -378,7 +488,10 @@ Events:
 
 ## Extras
 
-You can find examples of different ClusterIssuers on the [deploy/cert-manager](deploy/cert-manager) folder. Make sure you update the information to reflect your environment before applying those manifests.
+Infrastructure manifests are organised by backend:
+
+- **Ingress mode**: ClusterIssuer examples are in [deploy/cert-manager](deploy/cert-manager). Update the email and ingress class before applying.
+- **Gateway API mode**: The `GatewayClass` resource is in [deploy/gateway](deploy/gateway). Apply it after installing the Contour Gateway Provisioner.
 
 For a quick test you can use the [examples/fleet.yaml](examples/fleet.yaml). This manifest will deploy a simple http game server that keeps the health check and changes the state to "Ready".
 ```bash

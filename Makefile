@@ -123,5 +123,5 @@ deploy-local:
 	./hack/push_k3s.sh
 
 make run: docker
-	docker run -it --rm -v ${PWD}/.infrastructure/k3s.yaml:/home/octops/.kube/config \
+	docker run -it --rm -v ${PWD}/.infrastructure/config.yml:/home/octops/.kube/config \
 	octops/gameserver-ingress-controller:${VERSION} --kubeconfig=/home/octops/.kube/config
