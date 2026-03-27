@@ -26,7 +26,8 @@ spec:
         octops.io/gateway-name: "gateway"
 
         # Listener name inside the Gateway (must match spec.listeners[].name in gateway.yaml)
-        octops.io/gateway-section-name: "https"
+        # Use "https" when a TLS certificate is configured on the Gateway listener.
+        octops.io/gateway-section-name: "http"
 
         # Routing mode: each game server gets its own subdomain
         octops.io/gameserver-ingress-mode: "domain"
@@ -37,13 +38,14 @@ spec:
     spec:
       ports:
         - name: default
-          containerPort: 7777
+          containerPort: 8088  # port the HTTP game server listens on (see examples/gameserver-http/main.go)
           protocol: TCP
       template:
         spec:
           containers:
             - name: gameserver
-              image: gcr.io/agones-images/udp-server:0.21
+              image: octops/gameserver-http:latest
+#              image: gcr.io/agones-images/udp-server:0.21
               resources:
                 requests:
                   memory: "64Mi"

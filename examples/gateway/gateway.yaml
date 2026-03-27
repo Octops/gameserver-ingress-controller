@@ -2,8 +2,9 @@
 # All game server HTTPRoutes attach to this Gateway via the octops.io/gateway-name annotation.
 #
 # Prerequisites:
-#   - Gateway API CRDs installed: kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/standard-install.yaml
-#   - A GatewayClass implementation present in the cluster (e.g. nginx, contour, istio, envoy)
+#   - Gateway API CRDs installed: kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/standard-install.yaml
+#   - Contour Gateway Provisioner installed: kubectl apply -f https://projectcontour.io/quickstart/contour-gateway-provisioner.yaml
+#   - A GatewayClass created with controllerName: projectcontour.io/gateway-controller (see README)
 #
 # Update `gatewayClassName` to match the GatewayClass available in your cluster.
 # Update `certificateRefs.name` to match the Secret created by cert-manager (see certificate.yaml).
@@ -13,7 +14,7 @@ metadata:
   name: gateway
   namespace: default
 spec:
-  gatewayClassName: nginx
+  gatewayClassName: contour
   listeners:
     - name: https
       port: 443
