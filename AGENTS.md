@@ -261,7 +261,7 @@ Known sharp edges for AI agents working in this area:
 - Contour v1.32.1 + Gateway API v1.5.1 require CRD patching (see setup above) — this is a Contour bug, not ours.
 - `hack/setup-infra.sh` applies the provisioner with `--force-conflicts` because it bundles older Gateway API CRDs (v1.2.1) that conflict with v1.5.1; the resulting CRD errors are expected and harmless.
 - The example game server (`octops/gameserver-http:latest`) listens on `containerPort: 8088`. Fleet manifests must match this — do not use the default Agones `7777`.
-- On Docker Desktop, NodePorts are not reachable from the host. Use `kubectl port-forward -n default svc/envoy-gateway 8080:80` for local testing.
+- On Docker Desktop, NodePorts are not reachable from the host. Use `kubectl port-forward -n octops-gateway svc/envoy-gateway 8080:80` for local testing.
 
 ---
 
