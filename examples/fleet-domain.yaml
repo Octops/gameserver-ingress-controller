@@ -44,9 +44,9 @@ spec:
         spec:
           containers:
             - name: gameserver
-              image: gcr.io/agones-images/udp-server:0.21
+#              image: gcr.io/agones-images/udp-server:0.21
               imagePullPolicy: Always
-              #image: octops/gameserver-http:latest
+              image: octops/gameserver-http:latest
               resources:
                 requests:
                   memory: "64Mi"

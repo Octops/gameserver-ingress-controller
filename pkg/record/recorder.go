@@ -8,8 +8,9 @@ import (
 )
 
 const (
-	IngressKind = "Ingress"
-	ServiceKind = "Service"
+	IngressKind   = "Ingress"
+	ServiceKind   = "Service"
+	HTTPRouteKind = "HTTPRoute"
 
 	EventTypeNormal         string = "Normal"
 	EventTypeWarning               = "Warning"
@@ -41,6 +42,10 @@ func (r *EventRecorder) RecordSuccess(gs *agonesv1.GameServer, kind string) {
 
 func (r *EventRecorder) RecordCreating(gs *agonesv1.GameServer, kind string) {
 	r.recordEvent(gs, EventTypeNormal, ReasonReconcileCreating, fmt.Sprintf("Creating %s for gameserver %s/%s", kind, gs.Namespace, gs.Name))
+}
+
+func (r *EventRecorder) RecordWarning(gs *agonesv1.GameServer, kind string, message string) {
+	r.recordEvent(gs, EventTypeWarning, ReasonReconcileFailed, fmt.Sprintf("%s warning for gameserver %s/%s: %s", kind, gs.Namespace, gs.Name, message))
 }
 
 func (r *EventRecorder) RecordEvent(gs *agonesv1.GameServer, eventMessage string) {

@@ -1,0 +1,57 @@
+# Fleet manifest — Gateway API backend, path routing mode.
+#
+# All game servers share one hostname, each accessible under its own path:
+# https://game.example.com/[gameserver-name]
+#
+# The controller creates one HTTPRoute per game server pointing to the shared Gateway.
+# TLS is terminated at the Gateway listener — see certificate.yaml (use single hostname, not wildcard).
+#
+# Before applying:
+#   1. Apply gateway.yaml and certificate.yaml (update certificate.yaml to use game.example.com, not wildcard)
+#   2. Replace "game.example.com" with your FQDN
+#   3. Replace "gateway" with the name of your Gateway resource if different
+#   4. Update DNS: add an A/CNAME record game.example.com -> Gateway external IP
+apiVersion: "agones.dev/v1"
+kind: Fleet
+metadata:
+  name: octops-gateway-path
+spec:
+  replicas: 3
+  template:
+    metadata:
+      annotations:
+        # Select the Gateway API backend instead of Ingress
+        octops.io/router-backend: "gateway"
+
+        # Name and namespace of the pre-existing Gateway resource
+        octops.io/gateway-name: "gateway"
+        octops.io/gateway-namespace: "octops-gateway"
+
+        # Listener name inside the Gateway (must match spec.listeners[].name in gateway.yaml)
+        # Use "https" when a TLS certificate is configured on the Gateway listener.
+        octops.io/gateway-section-name: "http"
+
+        # Routing mode: all game servers share one hostname, differentiated by path
+        octops.io/gameserver-ingress-mode: "path"
+        octops.io/gameserver-ingress-fqdn: "game.example.com"
+
+        # Custom annotations are forwarded to the HTTPRoute (octops- prefix is stripped)
+        # octops-example.com/my-annotation: "my-value"
+    spec:
+      ports:
+        - name: default
+          containerPort: 8088  # port the HTTP game server listens on (see examples/gameserver-http/main.go)
+          protocol: TCP
+      template:
+        spec:
+          containers:
+            - name: gameserver
+              image: octops/gameserver-http:latest
+#              image: gcr.io/agones-images/udp-server:0.21
+              resources:
+                requests:
+                  memory: "64Mi"
+                  cpu: "20m"
+                limits:
+                  memory: "64Mi"
+                  cpu: "20m"

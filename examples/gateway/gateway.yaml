@@ -1,0 +1,33 @@
+# Gateway resource — provisioned once by the ops team.
+# All game server HTTPRoutes attach to this Gateway via the octops.io/gateway-name annotation.
+#
+# Prerequisites:
+#   - Gateway API CRDs installed: kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/standard-install.yaml
+#   - Contour Gateway Provisioner installed: kubectl apply -f https://projectcontour.io/quickstart/contour-gateway-provisioner.yaml
+#   - A GatewayClass created with controllerName: projectcontour.io/gateway-controller (see README)
+#
+# Update `gatewayClassName` to match the GatewayClass available in your cluster.
+# Update `certificateRefs.name` to match the Secret created by cert-manager (see certificate.yaml).
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: gateway
+  namespace: octops-gateway   # dedicated namespace keeps provisioner pods out of default
+spec:
+  gatewayClassName: contour
+  listeners:
+    - name: https
+      port: 443
+      protocol: HTTPS
+      tls:
+        certificateRefs:
+          - name: wildcard-game-tls   # Secret written by cert-manager — see certificate.yaml
+      allowedRoutes:
+        namespaces:
+          from: All   # HTTPRoutes are in the game server namespace, not octops-gateway
+    - name: http
+      port: 80
+      protocol: HTTP
+      allowedRoutes:
+        namespaces:
+          from: All   # HTTPRoutes are in the game server namespace, not octops-gateway

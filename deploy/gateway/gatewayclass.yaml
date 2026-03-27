@@ -1,0 +1,12 @@
+# GatewayClass for the Contour Gateway Provisioner.
+# Apply this once after installing the provisioner:
+#   kubectl apply -f https://projectcontour.io/quickstart/contour-gateway-provisioner.yaml
+#
+# The provisioner watches for Gateway resources that reference this GatewayClass
+# and automatically creates a dedicated Envoy deployment per Gateway.
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: contour
+spec:
+  controllerName: projectcontour.io/gateway-controller
