@@ -21,6 +21,7 @@ type GameSeverEventHandler struct {
 	client               *kubernetes.Clientset
 	serviceReconciler    *reconcilers.ServiceReconciler
 	ingressReconciler    *reconcilers.IngressReconciler
+	gatewayReconciler    *reconcilers.GatewayReconciler
 	gameserverReconciler *reconcilers.GameServerReconciler
 }
 
@@ -29,6 +30,7 @@ func NewGameSeverEventHandler(store *stores.Store, agones *stores.AgonesStore, r
 		logger:               runtime.Logger().WithField("component", "event_handler"),
 		serviceReconciler:    reconcilers.NewServiceReconciler(store, recorder),
 		ingressReconciler:    reconcilers.NewIngressReconciler(store, recorder),
+		gatewayReconciler:    reconcilers.NewGatewayReconciler(store, recorder),
 		gameserverReconciler: reconcilers.NewGameServerReconciler(agones, recorder),
 	}
 }
@@ -86,9 +88,18 @@ func (h *GameSeverEventHandler) Reconcile(ctx context.Context, logger *logrus.En
 		return errors.Wrapf(err, "failed to reconcile service %s", k8sutil.Namespaced(gs))
 	}
 
-	_, ingReconciled, err := h.ingressReconciler.Reconcile(ctx, gs)
-	if err != nil {
-		return errors.Wrapf(err, "failed to reconcile ingress %s", k8sutil.Namespaced(gs))
+	var routeReconciled bool
+	switch gameserver.GetRouterBackend(gs) {
+	case gameserver.RouterBackendGateway:
+		_, routeReconciled, err = h.gatewayReconciler.Reconcile(ctx, gs)
+		if err != nil {
+			return errors.Wrapf(err, "failed to reconcile HTTPRoute %s", k8sutil.Namespaced(gs))
+		}
+	default:
+		_, routeReconciled, err = h.ingressReconciler.Reconcile(ctx, gs)
+		if err != nil {
+			return errors.Wrapf(err, "failed to reconcile ingress %s", k8sutil.Namespaced(gs))
+		}
 	}
 
 	result, err := h.gameserverReconciler.Reconcile(ctx, gs)
@@ -96,12 +107,11 @@ func (h *GameSeverEventHandler) Reconcile(ctx context.Context, logger *logrus.En
 		return errors.Wrapf(err, "failed to reconcile gameserver %s", k8sutil.Namespaced(gs))
 	}
 
-	if ingReconciled {
+	if routeReconciled {
 		msg := fmt.Sprintf("%s/%s", k8sutil.Namespaced(result), result.Status.State)
-		//msg = fmt.Sprintf("%s/%s nothing to reconcile", k8sutil.Namespaced(result), result.Status.State)
 		logger.WithFields(logrus.Fields{
 			"reconciled": true,
-			"ingress":    "created",
+			"backend":    string(gameserver.GetRouterBackend(gs)),
 		}).Info(msg)
 	}
 

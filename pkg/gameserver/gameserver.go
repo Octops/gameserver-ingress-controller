@@ -6,9 +6,14 @@ import (
 
 type IngressRoutingMode string
 
+type RouterBackend string
+
 const (
 	IngressRoutingModeDomain IngressRoutingMode = "domain"
 	IngressRoutingModePath   IngressRoutingMode = "path"
+
+	RouterBackendIngress RouterBackend = "ingress"
+	RouterBackendGateway RouterBackend = "gateway"
 
 	OctopsAnnotationIngressMode            = "octops.io/gameserver-ingress-mode"
 	OctopsAnnotationIngressDomain          = "octops.io/gameserver-ingress-domain"
@@ -21,6 +26,11 @@ const (
 	OctopsAnnotationGameServerIngressReady = "octops.io/ingress-ready"
 	OctopsAnnotationIngressClassName       = "octops.io/ingress-class-name"
 	OctopsAnnotationIngressClassNameLegacy = "octops-kubernetes.io/ingress.class"
+
+	OctopsAnnotationRouterBackend      = "octops.io/router-backend"
+	OctopsAnnotationGatewayName        = "octops.io/gateway-name"
+	OctopsAnnotationGatewayNamespace   = "octops.io/gateway-namespace"
+	OctopsAnnotationGatewaySectionName = "octops.io/gateway-section-name"
 
 	CertManagerAnnotationIssuer = "cert-manager.io/cluster-issuer"
 	AgonesGameServerNameLabel   = "agones.dev/gameserver"
@@ -115,4 +125,12 @@ func GetIngressClassName(gs *agonesv1.GameServer) string {
 	}
 
 	return ""
+}
+
+func GetRouterBackend(gs *agonesv1.GameServer) RouterBackend {
+	if backend, ok := HasAnnotation(gs, OctopsAnnotationRouterBackend); ok {
+		return RouterBackend(backend)
+	}
+
+	return RouterBackendIngress
 }

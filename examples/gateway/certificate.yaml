@@ -1,0 +1,27 @@
+# cert-manager Certificate — provisioned once by the ops team.
+#
+# In domain mode a wildcard certificate covers every game server subdomain automatically
+# (e.g. gs-abc123.game.example.com, gs-xyz456.game.example.com).
+#
+# In path mode replace the wildcard with the single FQDN used by all game servers
+# (e.g. game.example.com).
+#
+# The Secret name must match the certificateRefs.name in gateway.yaml.
+#
+# Prerequisites:
+#   - cert-manager installed: https://cert-manager.io/docs/installation/
+#   - A ClusterIssuer named "letsencrypt-prod" (or update issuerRef below to match yours)
+#     Examples can be found in deploy/cert-manager/
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-game-cert
+  namespace: default
+spec:
+  secretName: wildcard-game-tls       # must match gateway.yaml certificateRefs.name
+  issuerRef:
+    name: letsencrypt-prod             # name of your ClusterIssuer
+    kind: ClusterIssuer
+  dnsNames:
+    - "*.game.example.com"             # domain mode: wildcard covers all game server subdomains
+    # - "game.example.com"             # path mode: single hostname shared by all game servers
