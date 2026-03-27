@@ -452,6 +452,31 @@ Check logs:
 $ kubectl -n octops-system logs -f $(kubectl -n octops-system get pod -l app=octops-ingress-controller -o=jsonpath='{.items[*].metadata.name}')
 ```
 
+## Controller Flags
+
+| Flag | Default | Description |
+|---|---|---|
+| `--kubeconfig` | `` | Path to kubeconfig file. Not required when running in-cluster. |
+| `--sync-period` | `15s` | Minimum frequency at which watched resources are reconciled. |
+| `--webhook-port` | `30234` | Port used for webhooks. |
+| `--health-probe-addrs` | `:30235` | Address for liveness/readiness probes (`/healthz`). |
+| `--metrics-addrs` | `:9090` | Address for Prometheus metrics. |
+| `--max-concurrent-reconciles` | `10` | Maximum number of concurrent reconcile loops. |
+| `--verbose` | `false` | Enable verbose logging. |
+| `--enable-gateway-api` | `auto` | Controls the Gateway API backend — see below. |
+
+### `--enable-gateway-api`
+
+This flag controls whether the controller creates a Gateway API (`HTTPRoute`) informer at startup. It accepts three values:
+
+| Value | Behaviour |
+|---|---|
+| `auto` (default) | Probe the cluster at startup. If `httproutes.gateway.networking.k8s.io` CRD is present, enable the Gateway API backend. If absent, log a warning and disable it — the controller starts normally and the Ingress backend continues to work. |
+| `true` | Always enable. Fail hard at startup if the HTTPRoute CRD is not installed. Use this to make a missing CRD a deployment error rather than a silent degradation. |
+| `false` | Always disable. No informer or client for Gateway API is created. Use this to keep the controller lightweight in clusters that will never use the gateway backend. |
+
+The default `auto` mode is safe for clusters that have not installed Gateway API CRDs — the controller will start and continue to manage Ingress resources normally. If a game server uses `octops.io/router-backend: gateway` while the backend is disabled, the controller will log a clear error for that specific game server rather than silently falling back to Ingress.
+
 ## Events
 You can track events recorded for each GameServer running `kubectl get events [-w]` and the output will look similar to:
 ```

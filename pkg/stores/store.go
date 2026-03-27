@@ -20,26 +20,27 @@ type Store struct {
 	*gatewayStore
 }
 
-func NewStore(ctx context.Context, client kubernetes.Interface, restConfig *rest.Config) (*Store, error) {
+func NewStore(ctx context.Context, client kubernetes.Interface, restConfig *rest.Config, gatewayEnabled bool) (*Store, error) {
 	factory := informers.NewSharedInformerFactory(client, 0)
 	services := factory.Core().V1().Services()
 	ingresses := factory.Networking().V1().Ingresses()
 
-	gwClient, err := gatewayclient.NewForConfig(restConfig)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create gateway-api client")
-	}
-
-	gwFactory := gatewayinformers.NewSharedInformerFactory(gwClient, 0)
-	httpRoutes := gwFactory.Gateway().V1().HTTPRoutes()
-
 	go factory.Start(ctx.Done())
-	go gwFactory.Start(ctx.Done())
 
 	store := &Store{
-		newServiceStore(client, services),
-		newIngressStore(client, ingresses),
-		newGatewayStore(gwClient, httpRoutes),
+		serviceStore: newServiceStore(client, services),
+		ingressStore: newIngressStore(client, ingresses),
+	}
+
+	if gatewayEnabled {
+		gwClient, err := gatewayclient.NewForConfig(restConfig)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create gateway-api client")
+		}
+		gwFactory := gatewayinformers.NewSharedInformerFactory(gwClient, 0)
+		httpRoutes := gwFactory.Gateway().V1().HTTPRoutes()
+		go gwFactory.Start(ctx.Done())
+		store.gatewayStore = newGatewayStore(gwClient, httpRoutes)
 	}
 
 	if err := store.HasSynced(ctx); err != nil {
@@ -50,16 +51,20 @@ func NewStore(ctx context.Context, client kubernetes.Interface, restConfig *rest
 }
 
 func (s *Store) HasSynced(ctx context.Context) error {
-	svcInformer := s.serviceStore.informer.Informer()
-	ingInformer := s.ingressStore.informer.Informer()
-	gwInformer := s.gatewayStore.informer.Informer()
+	syncFuncs := []cache.InformerSynced{
+		s.serviceStore.informer.Informer().HasSynced,
+		s.ingressStore.informer.Informer().HasSynced,
+	}
+	if s.gatewayStore != nil {
+		syncFuncs = append(syncFuncs, s.gatewayStore.informer.Informer().HasSynced)
+	}
 
 	f := func() error {
 		stopper, cancel := context.WithTimeout(ctx, time.Second*15)
 		defer cancel()
 
 		runtime.Logger().WithField("component", "store").Info("waiting for K8S cache to sync")
-		if !cache.WaitForCacheSync(stopper.Done(), svcInformer.HasSynced, ingInformer.HasSynced, gwInformer.HasSynced) {
+		if !cache.WaitForCacheSync(stopper.Done(), syncFuncs...) {
 			return errors.New("timed out waiting for K8S cache to sync")
 		}
 		return nil

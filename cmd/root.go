@@ -38,6 +38,7 @@ var (
 	metricsBindAddress      string
 	verbose                 bool
 	maxConcurrentReconciles int
+	enableGatewayAPI        string
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -59,6 +60,7 @@ makes the traffic to be routed to the game server using an Ingress Controller.`,
 			MetricsBindAddress:      metricsBindAddress,
 			Verbose:                 verbose,
 			MaxConcurrentReconciles: maxConcurrentReconciles,
+			EnableGatewayAPI:        enableGatewayAPI,
 		})
 	},
 }
@@ -85,6 +87,10 @@ func init() {
 	rootCmd.Flags().IntVar(&webhookPort, "webhook-port", 30234, "Port used by the controller for webhooks")
 	rootCmd.Flags().IntVar(&maxConcurrentReconciles, "max-concurrent-reconciles", 10, "Maximum number of concurrent reconciles which can be run simultaneously")
 	rootCmd.Flags().BoolVar(&verbose, "verbose", false, "Produce verbose log")
+	rootCmd.Flags().StringVar(&enableGatewayAPI, "enable-gateway-api", "auto", `Enable the Kubernetes Gateway API backend.
+  auto  – enable if Gateway API CRDs are present in the cluster (default)
+  true  – always enable; fail at startup if CRDs are missing
+  false – always disable; no informer or client is created`)
 }
 
 // initConfig reads in config file and ENV variables if set.
